@@ -1,27 +1,27 @@
 {
-  "updated_at": "2026-05-19 11:41:45",
+  "updated_at": "2026-05-19 11:44:04",
   "stats": {
     "item_count": 20,
     "alert_count": 0,
-    "last_poll": "2026-05-19 11:41:45"
+    "last_poll": "2026-05-19 11:44:04"
   },
   "prices": [
     {
       "hash_name": "AK-47 | Redline (Field-Tested)",
       "price": 200.52,
-      "sell_total": 1600,
-      "change_pct": -0.24
+      "sell_total": 1601,
+      "change_pct": 0.0
     },
     {
       "hash_name": "AWP | Asiimov (Field-Tested)",
       "price": 796.0,
-      "sell_total": 283,
+      "sell_total": 282,
       "change_pct": 0.0
     },
     {
       "hash_name": "AWP | Asiimov (Battle-Scarred)",
       "price": 509.89,
-      "sell_total": 433,
+      "sell_total": 435,
       "change_pct": 0.0
     },
     {
@@ -34,13 +34,13 @@
       "hash_name": "USP-S | Printstream (Field-Tested)",
       "price": 243.52,
       "sell_total": 936,
-      "change_pct": 0.2
+      "change_pct": 0.0
     },
     {
       "hash_name": "Desert Eagle | Printstream (Field-Tested)",
-      "price": 230.03,
+      "price": 235.0,
       "sell_total": 718,
-      "change_pct": 0.0
+      "change_pct": 2.16
     },
     {
       "hash_name": "Glock-18 | Gamma Doppler (Factory New)",
@@ -57,7 +57,7 @@
     {
       "hash_name": "Desert Eagle | Blaze (Factory New)",
       "price": 4570.03,
-      "sell_total": 89,
+      "sell_total": 88,
       "change_pct": 0.0
     },
     {
@@ -69,19 +69,19 @@
     {
       "hash_name": "AK-47 | Bloodsport (Field-Tested)",
       "price": 897.58,
-      "sell_total": 359,
+      "sell_total": 357,
       "change_pct": 0.0
     },
     {
       "hash_name": "AK-47 | Fuel Injector (Field-Tested)",
       "price": 1120.01,
-      "sell_total": 157,
+      "sell_total": 158,
       "change_pct": 0.0
     },
     {
       "hash_name": "M4A1-S | Cyrex (Field-Tested)",
       "price": 1149.0,
-      "sell_total": 171,
+      "sell_total": 170,
       "change_pct": 0.0
     },
     {
@@ -111,7 +111,7 @@
     {
       "hash_name": "AWP | Containment Breach (Field-Tested)",
       "price": 615.55,
-      "sell_total": 197,
+      "sell_total": 198,
       "change_pct": 0.0
     },
     {
