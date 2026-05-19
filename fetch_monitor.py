@@ -73,7 +73,17 @@ _private_key = None
 def load_private_key() -> RSA.RsaKey:
     global _private_key
     if _private_key is None:
-        pem = base64.b64decode(ECO_PRIVATE_KEY_B64).decode()
+        raw = ECO_PRIVATE_KEY_B64
+        # 兼容两种格式：Base64 编码的 PEM，或原始 PEM 文本
+        try:
+            decoded = base64.b64decode(raw)
+            # 如果解码后是有效的 UTF-8 PEM，就用它
+            pem = decoded.decode("utf-8")
+            if "BEGIN" not in pem:
+                raise ValueError("Decoded content is not a PEM")
+        except Exception:
+            # 解码失败，当作原始 PEM 文本
+            pem = raw
         _private_key = RSA.import_key(pem)
     return _private_key
 
