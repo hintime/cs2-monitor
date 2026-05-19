@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS2 Monitor — 饰品异动监控</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1923;color:#e0e0e0;min-height:100vh}
+.header{background:linear-gradient(135deg,#1a2a3a,#0f1923);padding:2rem;text-align:center;border-bottom:2px solid #2a4a6a}
+.header h1{font-size:2rem;color:#66b3ff}
+.header em{color:#8899aa;font-style:normal}
+.container{max-width:1200px;margin:0 auto;padding:1.5rem}
+.status-row{display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
+.card{background:#1a2a3a;border-radius:8px;padding:1.2rem;flex:1;min-width:160px;border:1px solid #2a4a6a;text-align:center}
+.card .label{font-size:0.8rem;color:#8899aa;text-transform:uppercase}
+.card .value{font-size:1.8rem;font-weight:700;margin-top:0.3rem}
+.red{color:#f44336}.green{color:#4caf50}
+table{width:100%;border-collapse:collapse;background:#1a2a3a;border-radius:8px;overflow:hidden;border:1px solid #2a4a6a;margin-bottom:1.5rem}
+th{background:#243447;padding:0.8rem;text-align:left;font-weight:600;color:#8899aa;font-size:0.85rem}
+td{padding:0.8rem;border-bottom:1px solid #243447}
+tr:last-child td{border-bottom:none}
+.price-up{color:#4caf50}.price-down{color:#f44336}
+.section-title{font-size:1.2rem;margin:1.5rem 0 1rem;color:#66b3ff}
+.meta{text-align:center;color:#556677;font-size:0.8rem;margin-top:1.5rem}
+.loading{text-align:center;padding:4rem;color:#556677}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600}
+.tag-up{background:#1b3a1b;color:#4caf50}.tag-down{background:#3a1b1b;color:#f44336}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🔫 CS2 Monitor</h1>
+  <em>饰品价格异动监控 · ECOSteam 数据</em>
+</div>
+<div class="container" id="app">
+  <div class="loading">⏳ 加载数据中...</div>
+</div>
+<script>
+async function fetchData() {
+  // 从根目录加载数据文件
+  const resp = await fetch('monitor_data.json?' + Date.now());
+  if (!resp.ok) throw new Error('数据加载失败');
+  return resp.json();
+}
+
+function render(data) {
+  const { stats, prices, alerts, updated_at, threshold_pct, monitor_interval_min } = data;
+
+  const formatTime = (t) => {
+    if (!t) return 'N/A';
+    return t.replace('T',' ').substring(0,19);
+  };
+
+  const changeClass = (v) => v > 0 ? 'price-up' : v < 0 ? 'price-down' : '';
+  const changeSign = (v) => v != null ? (v > 0 ? '+' : '') + v.toFixed(2) + '%' : '--';
+
+  const alertRows = alerts.slice(0, 30).map(a => `
+    <tr>
+      <td>${formatTime(a.created_at)}</td>
+      <td>${a.hash_name}</td>
+      <td>¥${a.old_price.toFixed(2)}</td>
+      <td>¥${a.new_price.toFixed(2)}</td>
+      <td><span class="tag ${a.direction==='up'?'tag-up':'tag-down'}">${a.change_pct >= 0 ? '+' : ''}${a.change_pct.toFixed(2)}%</span></td>
+    </tr>
+  `).join('');
+
+  const priceRows = prices.slice(0, 30).map(p => `
+    <tr>
+      <td>${p.hash_name}</td>
+      <td>¥${p.price.toFixed(2)}</td>
+      <td>${p.sell_total ?? '--'}</td>
+      <td class="${changeClass(p.change_pct)}">${changeSign(p.change_pct)}</td>
+    </tr>
+  `).join('');
+
+  const html = `
+    <div class="status-row">
+      <div class="card">
+        <div class="label">监控物品</div>
+        <div class="value">${stats.item_count}</div>
+      </div>
+      <div class="card">
+        <div class="label">今日告警</div>
+        <div class="value ${stats.alert_count ? 'red' : ''}">${stats.alert_count}</div>
+      </div>
+      <div class="card">
+        <div class="label">最后更新</div>
+        <div class="value" style="font-size:1rem">${formatTime(stats.last_poll).substring(11,19)}</div>
+      </div>
+    </div>
+
+    ${alerts.length ? `
+    <h2 class="section-title">🚨 最近告警（阈值 ≥${threshold_pct}%）</h2>
+    <table>
+      <thead><tr><th>时间</th><th>物品</th><th>旧价</th><th>新价</th><th>变化</th></tr></thead>
+      <tbody>${alertRows || '<tr><td colspan="5" style="text-align:center;color:#556677">暂无告警</td></tr>'}</tbody>
+    </table>
+    ` : ''}
+
+    <h2 class="section-title">📊 当前价格</h2>
+    <table>
+      <thead><tr><th>物品</th><th>当前价格</th><th>在售</th><th>最近变化</th></tr></thead>
+      <tbody>${priceRows}</tbody>
+    </table>
+
+    <p class="meta">数据源: ECOSteam · 更新间隔: ${monitor_interval_min} 分钟 · 最后更新: ${formatTime(updated_at)}</p>
+  `;
+
+  document.getElementById('app').innerHTML = html;
+}
+
+fetchData()
+  .then(render)
+  .catch(e => {
+    document.getElementById('app').innerHTML =
+      '<div class="loading">❌ 数据加载失败: ' + e.message + '<br><small>请稍后刷新</small></div>';
+  });
+</script>
+</body>
+</html>
