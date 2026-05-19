@@ -34,5 +34,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/monitor_data.json docs/monitor.db
+          # 文件可能不存在（API 返回空数据时），用 --ignore-errors 避免 fatal
+          git add --ignore-errors docs/monitor_data.json docs/monitor.db
           git diff --staged --quiet || (git commit -m "🔄 monitor: auto update [skip ci]" && git push)

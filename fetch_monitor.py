@@ -103,9 +103,10 @@ def eco_post(endpoint: str, body: dict) -> dict:
         try:
             resp = requests.post(f"{ECO_BASE}{endpoint}", json=body, timeout=15)
             data = resp.json()
-            if data.get("ResultCode") == 0:
+            rc = data.get("ResultCode")
+            if str(rc) == "0":
                 return data
-            logger.warning("ECO error %s: %s", data.get("ResultCode"), data.get("ResultMsg"))
+            logger.warning("ECO error %s: %s", rc, data.get("ResultMsg"))
         except Exception as e:
             logger.warning("ECO attempt %d failed: %s", attempt + 1, e)
             time.sleep(2)
@@ -210,56 +211,55 @@ def poll_and_detect():
     logger.info("Fetching ECO price data...")
     result = eco_post("/Api/Market/GetHashNameAndPriceList", {})
     items = result.get("ResultData", [])
-    if not items:
-        logger.warning("Empty ResultData, skipping")
-        return
-
-    price_map = {it["HashName"]: it for it in items if "HashName" in it}
-
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     new_alerts = 0
     prices_snapshot = []
 
-    for name in MONITOR_ITEMS:
-        eco_item = price_map.get(name)
-        if not eco_item:
-            continue
+    if not items:
+        logger.warning("Empty ResultData, writing empty snapshot")
+    else:
+        price_map = {it["HashName"]: it for it in items if "HashName" in it}
 
-        current_price = float(eco_item.get("MarketComprePrice", 0))
-        sell_total = int(eco_item.get("SellingTotal", 0))
-        if current_price <= 0:
-            continue
+        for name in MONITOR_ITEMS:
+            eco_item = price_map.get(name)
+            if not eco_item:
+                continue
 
-        insert_price(name, current_price, sell_total)
+            current_price = float(eco_item.get("MarketComprePrice", 0))
+            sell_total = int(eco_item.get("SellingTotal", 0))
+            if current_price <= 0:
+                continue
 
-        snap = {"hash_name": name, "price": current_price, "sell_total": sell_total}
+            insert_price(name, current_price, sell_total)
 
-        # 检测异动
-        last = get_last_price(name)
-        # 注意：insert_price 刚插入了当前价，get_last_price 会返回刚插入的记录
-        # 需要取倒数第二条才是上一次
-        db = sqlite3.connect(DB_PATH)
-        db.row_factory = sqlite3.Row
-        prev = db.execute(
-            "SELECT * FROM prices WHERE hash_name=? ORDER BY recorded_at DESC LIMIT 1 OFFSET 1",
-            (name,),
-        ).fetchone()
-        db.close()
+            snap = {"hash_name": name, "price": current_price, "sell_total": sell_total}
 
-        if prev and prev["price"] > 0:
-            change_pct = (current_price - prev["price"]) / prev["price"] * 100
-            snap["change_pct"] = round(change_pct, 2)
-            if abs(change_pct) >= ALERT_THRESHOLD_PCT:
-                direction = "up" if change_pct > 0 else "down"
-                insert_alert(name, prev["price"], current_price, round(change_pct, 2), direction)
-                new_alerts += 1
-                emoji = "🔺" if direction == "up" else "🔻"
-                logger.info("%s ALERT %s: ¥%.2f → ¥%.2f (%+.2f%%)",
-                            emoji, name, prev["price"], current_price, change_pct)
-        else:
-            snap["change_pct"] = None
+            # 检测异动
+            last = get_last_price(name)
+            # 注意：insert_price 刚插入了当前价，get_last_price 会返回刚插入的记录
+            # 需要取倒数第二条才是上一次
+            db = sqlite3.connect(DB_PATH)
+            db.row_factory = sqlite3.Row
+            prev = db.execute(
+                "SELECT * FROM prices WHERE hash_name=? ORDER BY recorded_at DESC LIMIT 1 OFFSET 1",
+                (name,),
+            ).fetchone()
+            db.close()
 
-        prices_snapshot.append(snap)
+            if prev and prev["price"] > 0:
+                change_pct = (current_price - prev["price"]) / prev["price"] * 100
+                snap["change_pct"] = round(change_pct, 2)
+                if abs(change_pct) >= ALERT_THRESHOLD_PCT:
+                    direction = "up" if change_pct > 0 else "down"
+                    insert_alert(name, prev["price"], current_price, round(change_pct, 2), direction)
+                    new_alerts += 1
+                    emoji = "🔺" if direction == "up" else "🔻"
+                    logger.info("%s ALERT %s: ¥%.2f → ¥%.2f (%+.2f%%)",
+                                emoji, name, prev["price"], current_price, change_pct)
+            else:
+                snap["change_pct"] = None
+
+            prices_snapshot.append(snap)
 
     # 生成 monitor_data.json
     alerts = get_recent_alerts(limit=100)
