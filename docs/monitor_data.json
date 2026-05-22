@@ -1,93 +1,93 @@
 {
-  "updated_at": "2026-05-22 18:01:25",
+  "updated_at": "2026-05-22 20:03:54",
   "stats": {
     "item_count": 20,
     "alert_count": 7,
-    "last_poll": "2026-05-22 18:01:25"
+    "last_poll": "2026-05-22 20:03:54"
   },
   "prices": [
     {
       "hash_name": "AK-47 | Redline (Field-Tested)",
-      "price": 196.99,
-      "sell_total": 1868,
-      "change_pct": -0.01
+      "price": 196.49,
+      "sell_total": 1863,
+      "change_pct": -0.25
     },
     {
       "hash_name": "AWP | Asiimov (Field-Tested)",
-      "price": 768.53,
-      "sell_total": 341,
-      "change_pct": 0.46
+      "price": 768.08,
+      "sell_total": 330,
+      "change_pct": -0.06
     },
     {
       "hash_name": "AWP | Asiimov (Battle-Scarred)",
-      "price": 507.1,
-      "sell_total": 549,
-      "change_pct": -0.08
+      "price": 505.0,
+      "sell_total": 537,
+      "change_pct": -0.41
     },
     {
       "hash_name": "M4A1-S | Printstream (Field-Tested)",
-      "price": 1234.08,
-      "sell_total": 369,
-      "change_pct": 0.0
+      "price": 1233.57,
+      "sell_total": 351,
+      "change_pct": -0.04
     },
     {
       "hash_name": "USP-S | Printstream (Field-Tested)",
-      "price": 233.59,
-      "sell_total": 652,
-      "change_pct": -0.0
+      "price": 233.04,
+      "sell_total": 632,
+      "change_pct": -0.24
     },
     {
       "hash_name": "Desert Eagle | Printstream (Field-Tested)",
-      "price": 233.0,
-      "sell_total": 564,
-      "change_pct": 0.65
+      "price": 231.0,
+      "sell_total": 543,
+      "change_pct": -0.86
     },
     {
       "hash_name": "Glock-18 | Gamma Doppler (Factory New)",
       "price": 939.56,
-      "sell_total": 445,
-      "change_pct": 1.02
+      "sell_total": 448,
+      "change_pct": 0.0
     },
     {
       "hash_name": "M4A4 | The Emperor (Factory New)",
       "price": 1390.0,
-      "sell_total": 131,
+      "sell_total": 128,
       "change_pct": 0.0
     },
     {
       "hash_name": "Desert Eagle | Blaze (Factory New)",
-      "price": 4050.0,
-      "sell_total": 96,
-      "change_pct": 0.0
+      "price": 4087.54,
+      "sell_total": 89,
+      "change_pct": 0.93
     },
     {
       "hash_name": "AK-47 | Vulcan (Field-Tested)",
       "price": 1240.0,
-      "sell_total": 259,
-      "change_pct": -0.48
+      "sell_total": 250,
+      "change_pct": 0.0
     },
     {
       "hash_name": "AK-47 | Bloodsport (Field-Tested)",
-      "price": 837.0,
-      "sell_total": 322,
-      "change_pct": -0.31
+      "price": 837.1,
+      "sell_total": 301,
+      "change_pct": 0.01
     },
     {
       "hash_name": "AK-47 | Fuel Injector (Field-Tested)",
       "price": 989.04,
-      "sell_total": 208,
-      "change_pct": -1.0
+      "sell_total": 196,
+      "change_pct": 0.0
     },
     {
       "hash_name": "M4A1-S | Cyrex (Field-Tested)",
-      "price": 1139.56,
-      "sell_total": 164,
+      "price": 1139.06,
+      "sell_total": 159,
       "change_pct": -0.04
     },
     {
       "hash_name": "SSG 08 | Blood in the Water (Field-Tested)",
       "price": 664.5,
-      "sell_total": 24,
+      "sell_total": 23,
       "change_pct": 0.0
     },
     {
@@ -98,27 +98,27 @@
     },
     {
       "hash_name": "Five-SeveN | Case Hardened (Field-Tested)",
-      "price": 98.43,
-      "sell_total": 105,
-      "change_pct": 0.0
+      "price": 98.0,
+      "sell_total": 106,
+      "change_pct": -0.44
     },
     {
       "hash_name": "USP-S | Kill Confirmed (Field-Tested)",
-      "price": 446.03,
-      "sell_total": 80,
-      "change_pct": 0.0
+      "price": 446.54,
+      "sell_total": 74,
+      "change_pct": 0.11
     },
     {
       "hash_name": "AWP | Containment Breach (Field-Tested)",
-      "price": 574.0,
-      "sell_total": 188,
-      "change_pct": 6.69
+      "price": 587.58,
+      "sell_total": 184,
+      "change_pct": 2.37
     },
     {
       "hash_name": "AWP | Wildfire (Field-Tested)",
-      "price": 297.08,
+      "price": 296.06,
       "sell_total": 164,
-      "change_pct": -0.15
+      "change_pct": -0.34
     }
   ],
   "alerts": [
