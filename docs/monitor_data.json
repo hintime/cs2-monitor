@@ -1,88 +1,88 @@
 {
-  "updated_at": "2026-05-22 13:38:44",
+  "updated_at": "2026-05-22 16:04:44",
   "stats": {
     "item_count": 20,
     "alert_count": 6,
-    "last_poll": "2026-05-22 13:38:45"
+    "last_poll": "2026-05-22 16:04:44"
   },
   "prices": [
     {
       "hash_name": "AK-47 | Redline (Field-Tested)",
-      "price": 194.56,
-      "sell_total": 1964,
-      "change_pct": 2.64
+      "price": 197.0,
+      "sell_total": 1933,
+      "change_pct": 1.25
     },
     {
       "hash_name": "AWP | Asiimov (Field-Tested)",
-      "price": 768.07,
-      "sell_total": 369,
-      "change_pct": -0.19
+      "price": 765.01,
+      "sell_total": 372,
+      "change_pct": -0.4
     },
     {
       "hash_name": "AWP | Asiimov (Battle-Scarred)",
-      "price": 503.06,
-      "sell_total": 570,
-      "change_pct": -1.75
+      "price": 507.52,
+      "sell_total": 548,
+      "change_pct": 0.89
     },
     {
       "hash_name": "M4A1-S | Printstream (Field-Tested)",
-      "price": 1233.06,
-      "sell_total": 393,
-      "change_pct": -0.52
+      "price": 1234.05,
+      "sell_total": 395,
+      "change_pct": 0.08
     },
     {
       "hash_name": "USP-S | Printstream (Field-Tested)",
-      "price": 231.55,
-      "sell_total": 729,
-      "change_pct": 1.1
+      "price": 233.6,
+      "sell_total": 690,
+      "change_pct": 0.89
     },
     {
       "hash_name": "Desert Eagle | Printstream (Field-Tested)",
-      "price": 229.54,
-      "sell_total": 627,
-      "change_pct": 1.6
+      "price": 231.5,
+      "sell_total": 586,
+      "change_pct": 0.85
     },
     {
       "hash_name": "Glock-18 | Gamma Doppler (Factory New)",
-      "price": 924.5,
-      "sell_total": 504,
-      "change_pct": -1.6
+      "price": 930.08,
+      "sell_total": 493,
+      "change_pct": 0.6
     },
     {
       "hash_name": "M4A4 | The Emperor (Factory New)",
-      "price": 1400.03,
-      "sell_total": 137,
-      "change_pct": 0.0
+      "price": 1390.0,
+      "sell_total": 138,
+      "change_pct": -0.72
     },
     {
       "hash_name": "Desert Eagle | Blaze (Factory New)",
-      "price": 4000.1,
-      "sell_total": 104,
-      "change_pct": 0.79
+      "price": 4050.0,
+      "sell_total": 109,
+      "change_pct": 1.25
     },
     {
       "hash_name": "AK-47 | Vulcan (Field-Tested)",
-      "price": 1249.52,
-      "sell_total": 281,
-      "change_pct": -0.04
+      "price": 1245.93,
+      "sell_total": 275,
+      "change_pct": -0.29
     },
     {
       "hash_name": "AK-47 | Bloodsport (Field-Tested)",
-      "price": 838.56,
-      "sell_total": 365,
-      "change_pct": -0.18
+      "price": 839.57,
+      "sell_total": 351,
+      "change_pct": 0.12
     },
     {
       "hash_name": "AK-47 | Fuel Injector (Field-Tested)",
-      "price": 1005.02,
-      "sell_total": 227,
-      "change_pct": -0.45
+      "price": 999.01,
+      "sell_total": 224,
+      "change_pct": -0.6
     },
     {
       "hash_name": "M4A1-S | Cyrex (Field-Tested)",
-      "price": 1149.55,
-      "sell_total": 164,
-      "change_pct": -0.64
+      "price": 1140.01,
+      "sell_total": 165,
+      "change_pct": -0.83
     },
     {
       "hash_name": "SSG 08 | Blood in the Water (Field-Tested)",
@@ -93,32 +93,32 @@
     {
       "hash_name": "P250 | Splash (Field-Tested)",
       "price": 160.0,
-      "sell_total": 27,
+      "sell_total": 28,
       "change_pct": 0.0
     },
     {
       "hash_name": "Five-SeveN | Case Hardened (Field-Tested)",
       "price": 98.43,
-      "sell_total": 110,
-      "change_pct": -0.14
+      "sell_total": 106,
+      "change_pct": 0.0
     },
     {
       "hash_name": "USP-S | Kill Confirmed (Field-Tested)",
-      "price": 446.52,
-      "sell_total": 91,
-      "change_pct": -0.12
+      "price": 446.03,
+      "sell_total": 88,
+      "change_pct": -0.11
     },
     {
       "hash_name": "AWP | Containment Breach (Field-Tested)",
       "price": 538.03,
-      "sell_total": 204,
-      "change_pct": 0.09
+      "sell_total": 197,
+      "change_pct": 0.0
     },
     {
       "hash_name": "AWP | Wildfire (Field-Tested)",
-      "price": 298.05,
-      "sell_total": 174,
-      "change_pct": -0.52
+      "price": 297.53,
+      "sell_total": 180,
+      "change_pct": -0.17
     }
   ],
   "alerts": [
