@@ -1,124 +1,124 @@
 {
-  "updated_at": "2026-05-23 10:50:48",
+  "updated_at": "2026-05-23 11:57:38",
   "stats": {
     "item_count": 20,
     "alert_count": 1,
-    "last_poll": "2026-05-23 10:50:48"
+    "last_poll": "2026-05-23 11:57:38"
   },
   "prices": [
     {
       "hash_name": "AK-47 | Redline (Field-Tested)",
-      "price": 191.48,
-      "sell_total": 1887,
-      "change_pct": 1.3
+      "price": 190.98,
+      "sell_total": 1928,
+      "change_pct": -0.26
     },
     {
       "hash_name": "AWP | Asiimov (Field-Tested)",
       "price": 769.02,
-      "sell_total": 345,
-      "change_pct": -0.06
+      "sell_total": 350,
+      "change_pct": 0.0
     },
     {
       "hash_name": "AWP | Asiimov (Battle-Scarred)",
       "price": 502.5,
-      "sell_total": 580,
+      "sell_total": 583,
       "change_pct": 0.0
     },
     {
       "hash_name": "M4A1-S | Printstream (Field-Tested)",
       "price": 1232.02,
-      "sell_total": 360,
-      "change_pct": -0.24
+      "sell_total": 365,
+      "change_pct": 0.0
     },
     {
       "hash_name": "USP-S | Printstream (Field-Tested)",
-      "price": 238.0,
-      "sell_total": 672,
-      "change_pct": 2.38
+      "price": 237.5,
+      "sell_total": 658,
+      "change_pct": -0.21
     },
     {
       "hash_name": "Desert Eagle | Printstream (Field-Tested)",
-      "price": 235.0,
-      "sell_total": 621,
-      "change_pct": 0.0
+      "price": 237.0,
+      "sell_total": 620,
+      "change_pct": 0.85
     },
     {
       "hash_name": "Glock-18 | Gamma Doppler (Factory New)",
-      "price": 963.02,
-      "sell_total": 471,
-      "change_pct": -0.67
+      "price": 950.0,
+      "sell_total": 472,
+      "change_pct": -1.35
     },
     {
       "hash_name": "M4A4 | The Emperor (Factory New)",
-      "price": 1458.07,
-      "sell_total": 127,
-      "change_pct": 0.0
+      "price": 1449.57,
+      "sell_total": 129,
+      "change_pct": -0.58
     },
     {
       "hash_name": "Desert Eagle | Blaze (Factory New)",
-      "price": 4086.09,
-      "sell_total": 103,
-      "change_pct": 0.89
+      "price": 4085.56,
+      "sell_total": 106,
+      "change_pct": -0.01
     },
     {
       "hash_name": "AK-47 | Vulcan (Field-Tested)",
-      "price": 1235.07,
-      "sell_total": 276,
-      "change_pct": -0.2
+      "price": 1234.57,
+      "sell_total": 277,
+      "change_pct": -0.04
     },
     {
       "hash_name": "AK-47 | Bloodsport (Field-Tested)",
-      "price": 843.02,
-      "sell_total": 343,
-      "change_pct": -0.12
+      "price": 843.41,
+      "sell_total": 340,
+      "change_pct": 0.05
     },
     {
       "hash_name": "AK-47 | Fuel Injector (Field-Tested)",
-      "price": 1019.5,
-      "sell_total": 212,
-      "change_pct": 1.33
+      "price": 1020.06,
+      "sell_total": 215,
+      "change_pct": 0.05
     },
     {
       "hash_name": "M4A1-S | Cyrex (Field-Tested)",
-      "price": 1135.0,
-      "sell_total": 172,
-      "change_pct": -0.09
+      "price": 1129.55,
+      "sell_total": 176,
+      "change_pct": -0.48
     },
     {
       "hash_name": "SSG 08 | Blood in the Water (Field-Tested)",
       "price": 664.5,
-      "sell_total": 26,
+      "sell_total": 27,
       "change_pct": 0.0
     },
     {
       "hash_name": "P250 | Splash (Field-Tested)",
       "price": 163.0,
-      "sell_total": 24,
+      "sell_total": 25,
       "change_pct": 0.0
     },
     {
       "hash_name": "Five-SeveN | Case Hardened (Field-Tested)",
       "price": 95.0,
-      "sell_total": 113,
-      "change_pct": -2.05
+      "sell_total": 112,
+      "change_pct": 0.0
     },
     {
       "hash_name": "USP-S | Kill Confirmed (Field-Tested)",
-      "price": 454.5,
+      "price": 454.0,
       "sell_total": 107,
-      "change_pct": 0.11
+      "change_pct": -0.11
     },
     {
       "hash_name": "AWP | Containment Breach (Field-Tested)",
       "price": 549.0,
-      "sell_total": 192,
-      "change_pct": 0.82
+      "sell_total": 195,
+      "change_pct": 0.0
     },
     {
       "hash_name": "AWP | Wildfire (Field-Tested)",
-      "price": 294.59,
-      "sell_total": 178,
-      "change_pct": 1.57
+      "price": 297.51,
+      "sell_total": 186,
+      "change_pct": 0.99
     }
   ],
   "alerts": [
