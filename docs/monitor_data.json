@@ -1,88 +1,88 @@
 {
-  "updated_at": "2026-05-23 16:54:52",
+  "updated_at": "2026-05-23 17:57:09",
   "stats": {
     "item_count": 20,
     "alert_count": 1,
-    "last_poll": "2026-05-23 16:54:52"
+    "last_poll": "2026-05-23 17:57:09"
   },
   "prices": [
     {
       "hash_name": "AK-47 | Redline (Field-Tested)",
-      "price": 193.57,
-      "sell_total": 1887,
-      "change_pct": 0.28
+      "price": 196.0,
+      "sell_total": 1835,
+      "change_pct": 1.26
     },
     {
       "hash_name": "AWP | Asiimov (Field-Tested)",
-      "price": 769.01,
-      "sell_total": 341,
-      "change_pct": 0.51
+      "price": 768.58,
+      "sell_total": 328,
+      "change_pct": -0.06
     },
     {
       "hash_name": "AWP | Asiimov (Battle-Scarred)",
       "price": 500.0,
-      "sell_total": 574,
+      "sell_total": 568,
       "change_pct": 0.0
     },
     {
       "hash_name": "M4A1-S | Printstream (Field-Tested)",
       "price": 1235.0,
-      "sell_total": 365,
+      "sell_total": 359,
       "change_pct": 0.0
     },
     {
       "hash_name": "USP-S | Printstream (Field-Tested)",
-      "price": 239.0,
-      "sell_total": 626,
-      "change_pct": -0.87
+      "price": 238.07,
+      "sell_total": 622,
+      "change_pct": -0.39
     },
     {
       "hash_name": "Desert Eagle | Printstream (Field-Tested)",
-      "price": 233.03,
-      "sell_total": 580,
-      "change_pct": 0.01
+      "price": 236.1,
+      "sell_total": 573,
+      "change_pct": 1.32
     },
     {
       "hash_name": "Glock-18 | Gamma Doppler (Factory New)",
-      "price": 930.1,
-      "sell_total": 476,
-      "change_pct": -0.32
+      "price": 932.51,
+      "sell_total": 445,
+      "change_pct": 0.26
     },
     {
       "hash_name": "M4A4 | The Emperor (Factory New)",
       "price": 1447.56,
-      "sell_total": 136,
-      "change_pct": -0.03
+      "sell_total": 129,
+      "change_pct": 0.0
     },
     {
       "hash_name": "Desert Eagle | Blaze (Factory New)",
-      "price": 4087.09,
-      "sell_total": 96,
-      "change_pct": -0.02
+      "price": 4149.03,
+      "sell_total": 92,
+      "change_pct": 1.52
     },
     {
       "hash_name": "AK-47 | Vulcan (Field-Tested)",
       "price": 1237.0,
-      "sell_total": 271,
-      "change_pct": 1.31
+      "sell_total": 255,
+      "change_pct": 0.0
     },
     {
       "hash_name": "AK-47 | Bloodsport (Field-Tested)",
-      "price": 849.01,
-      "sell_total": 317,
-      "change_pct": 0.06
+      "price": 848.53,
+      "sell_total": 298,
+      "change_pct": -0.06
     },
     {
       "hash_name": "AK-47 | Fuel Injector (Field-Tested)",
       "price": 1025.09,
-      "sell_total": 206,
-      "change_pct": 0.69
+      "sell_total": 197,
+      "change_pct": 0.0
     },
     {
       "hash_name": "M4A1-S | Cyrex (Field-Tested)",
-      "price": 1130.09,
-      "sell_total": 174,
-      "change_pct": 0.0
+      "price": 1134.02,
+      "sell_total": 170,
+      "change_pct": 0.35
     },
     {
       "hash_name": "SSG 08 | Blood in the Water (Field-Tested)",
@@ -93,32 +93,32 @@
     {
       "hash_name": "P250 | Splash (Field-Tested)",
       "price": 163.0,
-      "sell_total": 27,
+      "sell_total": 26,
       "change_pct": 0.0
     },
     {
       "hash_name": "Five-SeveN | Case Hardened (Field-Tested)",
       "price": 94.98,
-      "sell_total": 117,
+      "sell_total": 116,
       "change_pct": 0.0
     },
     {
       "hash_name": "USP-S | Kill Confirmed (Field-Tested)",
       "price": 453.5,
-      "sell_total": 88,
-      "change_pct": -0.11
+      "sell_total": 84,
+      "change_pct": 0.0
     },
     {
       "hash_name": "AWP | Containment Breach (Field-Tested)",
-      "price": 571.0,
-      "sell_total": 194,
-      "change_pct": -0.17
+      "price": 570.0,
+      "sell_total": 191,
+      "change_pct": -0.18
     },
     {
       "hash_name": "AWP | Wildfire (Field-Tested)",
-      "price": 296.02,
-      "sell_total": 181,
-      "change_pct": -0.17
+      "price": 296.54,
+      "sell_total": 173,
+      "change_pct": 0.18
     }
   ],
   "alerts": [
