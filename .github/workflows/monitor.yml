@@ -28,6 +28,7 @@ jobs:
         env:
           ECO_PARTNER_ID: ${{ secrets.ECO_PARTNER_ID }}
           ECO_PRIVATE_KEY_B64: ${{ secrets.ECO_PRIVATE_KEY_B64 }}
+          ALERT_THRESHOLD_PCT: ${{ vars.ALERT_THRESHOLD_PCT || '5.0' }}
         run: python fetch_monitor.py
 
       - name: Commit & Push
@@ -36,4 +37,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # 文件可能不存在（API 返回空数据时），用 --ignore-errors 避免 fatal
           git add --ignore-errors docs/monitor_data.json docs/monitor.db
-          git diff --staged --quiet || (git commit -m "🔄 monitor: auto update [skip ci]" && git push)
+          git diff --staged --quiet || (git commit -m "monitor: auto update [skip ci]" && git push)

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CS2 Monitor — 饰品异动监控</title>
+<title>CS2 Monitor - 饰品异动监控</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1923;color:#e0e0e0;min-height:100vh}
@@ -15,36 +15,145 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .card{background:#1a2a3a;border-radius:8px;padding:1.2rem;flex:1;min-width:160px;border:1px solid #2a4a6a;text-align:center}
 .card .label{font-size:0.8rem;color:#8899aa;text-transform:uppercase}
 .card .value{font-size:1.8rem;font-weight:700;margin-top:0.3rem}
-.red{color:#f44336}.green{color:#4caf50}
+.red{color:#f44336}.green{color:#4caf50}.blue{color:#66b3ff}
+
+/* 涨跌分布条 */
+.dist-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:0.5rem;background:#243447}
+.dist-up{background:#4caf50}
+.dist-flat{background:#8899aa}
+.dist-down{background:#f44336}
+
+/* 搜索框 */
+.search-box{width:100%;padding:0.8rem 1rem;background:#1a2a3a;border:1px solid #2a4a6a;border-radius:8px;color:#e0e0e0;font-size:1rem;margin-bottom:1rem}
+.search-box:focus{outline:none;border-color:#66b3ff}
+
+/* 排序按钮 */
+.sort-btn{background:#243447;border:none;color:#8899aa;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;margin-left:4px}
+.sort-btn:hover{background:#2a4a6a;color:#e0e0e0}
+.sort-btn.active{color:#66b3ff}
+
+/* 表格 */
 table{width:100%;border-collapse:collapse;background:#1a2a3a;border-radius:8px;overflow:hidden;border:1px solid #2a4a6a;margin-bottom:1.5rem}
-th{background:#243447;padding:0.8rem;text-align:left;font-weight:600;color:#8899aa;font-size:0.85rem}
+th{background:#243447;padding:0.8rem;text-align:left;font-weight:600;color:#8899aa;font-size:0.85rem;cursor:pointer;user-select:none}
+th:hover{background:#2a4a6a}
 td{padding:0.8rem;border-bottom:1px solid #243447}
 tr:last-child td{border-bottom:none}
+tr:hover{background:#243447}
 .price-up{color:#4caf50}.price-down{color:#f44336}
-.section-title{font-size:1.2rem;margin:1.5rem 0 1rem;color:#66b3ff}
-.meta{text-align:center;color:#556677;font-size:0.8rem;margin-top:1.5rem}
-.loading{text-align:center;padding:4rem;color:#556677}
+
+/* 迷你趋势图 */
+.sparkline{width:80px;height:30px}
+
+/* 标签 */
 .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600}
 .tag-up{background:#1b3a1b;color:#4caf50}.tag-down{background:#3a1b1b;color:#f44336}
+
+.section-title{font-size:1.2rem;margin:1.5rem 0 1rem;color:#66b3ff;display:flex;align-items:center;gap:0.5rem}
+.meta{text-align:center;color:#556677;font-size:0.8rem;margin-top:1.5rem}
+.loading{text-align:center;padding:4rem;color:#556677}
+
+/* 自动刷新指示器 */
+.refresh-indicator{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4caf50;margin-left:0.5rem;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .header h1{font-size:1.5rem}
+  .card{min-width:100px;padding:0.8rem}
+  .card .value{font-size:1.2rem}
+  th,td{padding:0.5rem;font-size:0.8rem}
+  .sparkline{width:60px;height:24px}
+}
+
+/* 数据新鲜度 */
+.fresh{color:#4caf50}.stale{color:#ff9800}.expired{color:#f44336}
 </style>
 </head>
 <body>
 <div class="header">
-  <h1>🔫 CS2 Monitor</h1>
+  <h1>CS2 Monitor</h1>
   <em>饰品价格异动监控 · ECOSteam 数据</em>
 </div>
 <div class="container" id="app">
-  <div class="loading">⏳ 加载数据中...</div>
+  <div class="loading">加载数据中...</div>
 </div>
 <script>
+// 全局状态
+let currentData = null;
+let sortField = 'hash_name';
+let sortDesc = false;
+let searchTerm = '';
+
+// 自动刷新间隔（毫秒）
+const REFRESH_INTERVAL = 60000;
+
 async function fetchData() {
-  // 从根目录加载数据文件
   const resp = await fetch('monitor_data.json?' + Date.now());
   if (!resp.ok) throw new Error('数据加载失败');
   return resp.json();
 }
 
+// 绘制迷你趋势图（SVG）
+function drawSparkline(history, width=80, height=30) {
+  if (!history || history.length < 2) return '';
+  
+  const prices = history.map(h => h.price);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const range = max - min || 1;
+  
+  const points = prices.map((p, i) => {
+    const x = (i / (prices.length - 1)) * width;
+    const y = height - ((p - min) / range) * height;
+    return `${x},${y}`;
+  }).join(' ');
+  
+  const color = prices[prices.length-1] >= prices[0] ? '#4caf50' : '#f44336';
+  
+  return `<svg class="sparkline" viewBox="0 0 ${width} ${height}">
+    <polyline fill="none" stroke="${color}" stroke-width="1.5" points="${points}"/>
+  </svg>`;
+}
+
+// 计算数据新鲜度
+function getFreshness(updatedAt) {
+  if (!updatedAt) return { class: 'expired', text: '未知' };
+  const diff = Date.now() - new Date(updatedAt).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 15) return { class: 'fresh', text: `${mins}分钟前` };
+  if (mins < 60) return { class: 'stale', text: `${mins}分钟前` };
+  return { class: 'expired', text: `${Math.floor(mins/60)}小时前` };
+}
+
+// 排序函数
+function sortPrices(prices) {
+  return [...prices].sort((a, b) => {
+    let aVal = a[sortField];
+    let bVal = b[sortField];
+    
+    if (aVal === null || aVal === undefined) aVal = sortDesc ? -Infinity : Infinity;
+    if (bVal === null || bVal === undefined) bVal = sortDesc ? -Infinity : Infinity;
+    
+    if (typeof aVal === 'string') {
+      aVal = aVal.toLowerCase();
+      bVal = bVal.toLowerCase();
+    }
+    
+    if (aVal < bVal) return sortDesc ? 1 : -1;
+    if (aVal > bVal) return sortDesc ? -1 : 1;
+    return 0;
+  });
+}
+
+// 筛选函数
+function filterPrices(prices) {
+  if (!searchTerm) return prices;
+  const term = searchTerm.toLowerCase();
+  return prices.filter(p => p.hash_name.toLowerCase().includes(term));
+}
+
 function render(data) {
+  currentData = data;
   const { stats, prices, alerts, updated_at, threshold_pct, monitor_interval_min } = data;
 
   const formatTime = (t) => {
@@ -54,6 +163,14 @@ function render(data) {
 
   const changeClass = (v) => v > 0 ? 'price-up' : v < 0 ? 'price-down' : '';
   const changeSign = (v) => v != null ? (v > 0 ? '+' : '') + v.toFixed(2) + '%' : '--';
+  
+  const freshness = getFreshness(updated_at);
+
+  // 涨跌分布
+  const total_changes = stats.up_count + stats.down_count + stats.flat_count;
+  const upPct = total_changes ? (stats.up_count / total_changes * 100).toFixed(1) : 0;
+  const downPct = total_changes ? (stats.down_count / total_changes * 100).toFixed(1) : 0;
+  const flatPct = total_changes ? (stats.flat_count / total_changes * 100).toFixed(1) : 0;
 
   const alertRows = alerts.slice(0, 30).map(a => `
     <tr>
@@ -65,14 +182,20 @@ function render(data) {
     </tr>
   `).join('');
 
-  const priceRows = prices.slice(0, 30).map(p => `
+  // 排序和筛选后的价格数据
+  const processedPrices = filterPrices(sortPrices(prices));
+
+  const priceRows = processedPrices.map(p => `
     <tr>
       <td>${p.hash_name}</td>
       <td>¥${p.price.toFixed(2)}</td>
       <td>${p.sell_total ?? '--'}</td>
       <td class="${changeClass(p.change_pct)}">${changeSign(p.change_pct)}</td>
+      <td>${drawSparkline(p.history)}</td>
     </tr>
   `).join('');
+
+  const sortIndicator = (field) => sortField === field ? (sortDesc ? '▼' : '▲') : '';
 
   const html = `
     <div class="status-row">
@@ -85,37 +208,95 @@ function render(data) {
         <div class="value ${stats.alert_count ? 'red' : ''}">${stats.alert_count}</div>
       </div>
       <div class="card">
-        <div class="label">最后更新</div>
-        <div class="value" style="font-size:1rem">${formatTime(stats.last_poll).substring(11,19)}</div>
+        <div class="label">平均涨跌</div>
+        <div class="value ${stats.avg_change_pct > 0 ? 'green' : stats.avg_change_pct < 0 ? 'red' : ''}">${stats.avg_change_pct > 0 ? '+' : ''}${stats.avg_change_pct?.toFixed(2) ?? '--'}%</div>
+      </div>
+      <div class="card">
+        <div class="label">数据更新</div>
+        <div class="value ${freshness.class}" style="font-size:1rem">${freshness.text}<span class="refresh-indicator"></span></div>
       </div>
     </div>
 
+    <!-- 涨跌分布 -->
+    <div class="card" style="margin-bottom:1rem">
+      <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
+        <span class="green">涨 ${stats.up_count} (${upPct}%)</span>
+        <span style="color:#8899aa">平 ${stats.flat_count} (${flatPct}%)</span>
+        <span class="red">跌 ${stats.down_count} (${downPct}%)</span>
+      </div>
+      <div class="dist-bar">
+        <div class="dist-up" style="width:${upPct}%"></div>
+        <div class="dist-flat" style="width:${flatPct}%"></div>
+        <div class="dist-down" style="width:${downPct}%"></div>
+      </div>
+      ${stats.max_up ? `<div style="margin-top:0.5rem;font-size:0.8rem"><span class="green">最大涨幅: ${stats.max_up.hash_name} +${stats.max_up.change_pct}%</span></div>` : ''}
+      ${stats.max_down ? `<div style="font-size:0.8rem"><span class="red">最大跌幅: ${stats.max_down.hash_name} ${stats.max_down.change_pct}%</span></div>` : ''}
+    </div>
+
     ${alerts.length ? `
-    <h2 class="section-title">🚨 最近告警（阈值 ≥${threshold_pct}%）</h2>
+    <h2 class="section-title">最近告警（阈值 ≥${threshold_pct}%）</h2>
     <table>
       <thead><tr><th>时间</th><th>物品</th><th>旧价</th><th>新价</th><th>变化</th></tr></thead>
       <tbody>${alertRows || '<tr><td colspan="5" style="text-align:center;color:#556677">暂无告警</td></tr>'}</tbody>
     </table>
     ` : ''}
 
-    <h2 class="section-title">📊 当前价格</h2>
+    <h2 class="section-title">当前价格</h2>
+    
+    <!-- 搜索框 -->
+    <input type="text" class="search-box" placeholder="搜索饰品名称..." value="${searchTerm}" oninput="handleSearch(this.value)">
+    
     <table>
-      <thead><tr><th>物品</th><th>当前价格</th><th>在售</th><th>最近变化</th></tr></thead>
-      <tbody>${priceRows}</tbody>
+      <thead>
+        <tr>
+          <th onclick="handleSort('hash_name')">物品 ${sortIndicator('hash_name')}</th>
+          <th onclick="handleSort('price')">当前价格 ${sortIndicator('price')}</th>
+          <th onclick="handleSort('sell_total')">在售 ${sortIndicator('sell_total')}</th>
+          <th onclick="handleSort('change_pct')">最近变化 ${sortIndicator('change_pct')}</th>
+          <th>24h趋势</th>
+        </tr>
+      </thead>
+      <tbody>${priceRows || '<tr><td colspan="5" style="text-align:center;color:#556677">无数据</td></tr>'}</tbody>
     </table>
 
-    <p class="meta">数据源: ECOSteam · 更新间隔: ${monitor_interval_min} 分钟 · 最后更新: ${formatTime(updated_at)}</p>
+    <p class="meta">数据源: ECOSteam · 更新间隔: ${monitor_interval_min} 分钟 · 最后更新: ${formatTime(updated_at)} · 自动刷新中...</p>
   `;
 
   document.getElementById('app').innerHTML = html;
 }
 
-fetchData()
-  .then(render)
-  .catch(e => {
-    document.getElementById('app').innerHTML =
-      '<div class="loading">❌ 数据加载失败: ' + e.message + '<br><small>请稍后刷新</small></div>';
-  });
+// 排序处理
+function handleSort(field) {
+  if (sortField === field) {
+    sortDesc = !sortDesc;
+  } else {
+    sortField = field;
+    sortDesc = field === 'change_pct' || field === 'price' || field === 'sell_total';
+  }
+  if (currentData) render(currentData);
+}
+
+// 搜索处理
+function handleSearch(value) {
+  searchTerm = value;
+  if (currentData) render(currentData);
+}
+
+// 初始加载
+function load() {
+  fetchData()
+    .then(render)
+    .catch(e => {
+      document.getElementById('app').innerHTML =
+        '<div class="loading">数据加载失败: ' + e.message + '<br><small>请稍后刷新</small></div>';
+    });
+}
+
+// 启动
+load();
+
+// 自动刷新
+setInterval(load, REFRESH_INTERVAL);
 </script>
 </body>
 </html>

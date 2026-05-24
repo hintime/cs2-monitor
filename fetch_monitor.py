@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-cs2-monitor — GitHub Actions 后端
+cs2-monitor - GitHub Actions 后端
 定时拉取 ECOSteam 价格，检测异动，生成 monitor_data.json 推送到 gh-pages。
 运行环境: GitHub Actions (ubuntu-latest)
-依赖: requests, pycryptodome (均通过 pip 安装)
+依赖: requests, pycryptodome
 """
 import os
 import sys
@@ -11,10 +11,10 @@ import json
 import time
 import base64
 import sqlite3
-import hashlib
 import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from contextlib import contextmanager
 
 import requests
 
@@ -27,16 +27,15 @@ except ImportError:
     from Cryptodome.Signature import pkcs1_15
     from Cryptodome.PublicKey import RSA
 
-# ── Config ──────────────────────────────────────────────────────
+# -- Config -------------------------------------------------------
 ECO_BASE = "https://openapi.ecosteam.cn"
 ECO_PARTNER_ID = os.environ.get("ECO_PARTNER_ID", "")
 ECO_PRIVATE_KEY_B64 = os.environ.get("ECO_PRIVATE_KEY_B64", "")
 GAME_ID = "730"
 ALERT_THRESHOLD_PCT = float(os.environ.get("ALERT_THRESHOLD_PCT", "5.0"))
-DATA_DIR = Path(__file__).parent / "docs"   # GitHub Pages 用 docs/ 目录
+DATA_DIR = Path(__file__).parent / "docs"
 DB_PATH = DATA_DIR / "monitor.db"
 
-# 监控列表（与 cs2_web.py 一致）
 MONITOR_ITEMS = [
     "AK-47 | Redline (Field-Tested)",
     "AWP | Asiimov (Field-Tested)",
@@ -67,15 +66,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("cs2-monitor")
 
-# ── ECO Sign ────────────────────────────────────────────────────
+# -- ECO Sign -----------------------------------------------------
 _private_key = None
 
 def load_private_key() -> RSA.RsaKey:
     global _private_key
     if _private_key is None:
         raw = ECO_PRIVATE_KEY_B64
-        # ECO_PRIVATE_KEY_B64 存的是去掉 PEM 头尾的 Base64 密钥主体
-        # 和 cs2-dashboard 的 eco_sign.py 保持一致
         pem = '-----BEGIN RSA PRIVATE KEY-----\n' + raw + '\n-----END RSA PRIVATE KEY-----'
         _private_key = RSA.import_key(pem)
     return _private_key
@@ -112,98 +109,119 @@ def eco_post(endpoint: str, body: dict) -> dict:
             time.sleep(2)
     return {"ResultCode": -1, "ResultMsg": "All retries failed"}
 
-# ── DB ──────────────────────────────────────────────────────────
+# -- DB -----------------------------------------------------------
+@contextmanager
+def db_conn():
+    """数据库连接上下文管理器"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+        conn.commit()
+    finally:
+        conn.close()
+
 def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(DB_PATH)
-    db.executescript("""
-        CREATE TABLE IF NOT EXISTS prices (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            hash_name   TEXT    NOT NULL,
-            price       REAL    NOT NULL,
-            sell_total  INTEGER,
-            recorded_at TEXT    NOT NULL DEFAULT (datetime('now'))
-        );
-        CREATE INDEX IF NOT EXISTS idx_prices_nt
-            ON prices(hash_name, recorded_at);
+    with db_conn() as db:
+        db.executescript("""
+            CREATE TABLE IF NOT EXISTS prices (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                hash_name   TEXT    NOT NULL,
+                price       REAL    NOT NULL,
+                sell_total  INTEGER,
+                recorded_at TEXT    NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_prices_nt
+                ON prices(hash_name, recorded_at);
 
-        CREATE TABLE IF NOT EXISTS alerts (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            hash_name   TEXT    NOT NULL,
-            old_price   REAL    NOT NULL,
-            new_price   REAL    NOT NULL,
-            change_pct  REAL    NOT NULL,
-            direction   TEXT    NOT NULL,
-            created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
-        );
-    """)
-    db.commit()
-    db.close()
+            CREATE TABLE IF NOT EXISTS alerts (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                hash_name   TEXT    NOT NULL,
+                old_price   REAL    NOT NULL,
+                new_price   REAL    NOT NULL,
+                change_pct  REAL    NOT NULL,
+                direction   TEXT    NOT NULL,
+                created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_alerts_time
+                ON alerts(created_at);
+        """)
 
-def insert_price(hash_name, price, sell_total=0):
-    db = sqlite3.connect(DB_PATH)
-    db.execute(
-        "INSERT INTO prices (hash_name, price, sell_total) VALUES (?,?,?)",
-        (hash_name, price, sell_total),
-    )
-    db.commit()
-    db.close()
+def insert_prices_batch(records: list[tuple]):
+    """批量插入价格记录"""
+    with db_conn() as db:
+        db.executemany(
+            "INSERT INTO prices (hash_name, price, sell_total) VALUES (?,?,?)",
+            records,
+        )
 
-def get_last_price(hash_name) -> dict | None:
-    db = sqlite3.connect(DB_PATH)
-    db.row_factory = sqlite3.Row
+def get_previous_price(db, hash_name) -> dict | None:
+    """获取上一次价格（倒数第二条）"""
     row = db.execute(
-        "SELECT * FROM prices WHERE hash_name=? ORDER BY recorded_at DESC LIMIT 1",
+        "SELECT * FROM prices WHERE hash_name=? ORDER BY recorded_at DESC LIMIT 1 OFFSET 1",
         (hash_name,),
     ).fetchone()
-    db.close()
     return dict(row) if row else None
 
-def insert_alert(hash_name, old_price, new_price, change_pct, direction):
-    db = sqlite3.connect(DB_PATH)
+def insert_alert(db, hash_name, old_price, new_price, change_pct, direction):
     db.execute(
         "INSERT INTO alerts (hash_name, old_price, new_price, change_pct, direction) "
         "VALUES (?,?,?,?,?)",
         (hash_name, old_price, new_price, change_pct, direction),
     )
-    db.commit()
-    db.close()
 
-def get_recent_alerts(limit=50) -> list[dict]:
-    db = sqlite3.connect(DB_PATH)
-    db.row_factory = sqlite3.Row
+def get_recent_alerts(db, limit=50) -> list[dict]:
     rows = db.execute(
         "SELECT * FROM alerts ORDER BY created_at DESC LIMIT ?", (limit,)
     ).fetchall()
-    db.close()
     return [dict(r) for r in rows]
 
-def get_price_history(hash_name, hours=24) -> list[dict]:
-    db = sqlite3.connect(DB_PATH)
-    db.row_factory = sqlite3.Row
+def get_price_history(db, hash_name, hours=24) -> list[dict]:
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime(
         "%Y-%m-%d %H:%M:%S"
     )
     rows = db.execute(
-        "SELECT * FROM prices WHERE hash_name=? AND recorded_at>=? ORDER BY recorded_at",
+        "SELECT price, recorded_at FROM prices WHERE hash_name=? AND recorded_at>=? ORDER BY recorded_at",
         (hash_name, cutoff),
     ).fetchall()
-    db.close()
-    return [dict(r) for r in rows]
+    return [{"price": r["price"], "time": r["recorded_at"]} for r in rows]
 
-def get_stats() -> dict:
-    db = sqlite3.connect(DB_PATH)
+def get_stats(db) -> dict:
     item_count = len(MONITOR_ITEMS)
     alert_count = db.execute(
         "SELECT COUNT(*) FROM alerts WHERE created_at >= date('now')"
     ).fetchone()[0]
     last_poll = db.execute("SELECT MAX(recorded_at) FROM prices").fetchone()[0]
-    db.close()
     return {"item_count": item_count, "alert_count": alert_count, "last_poll": last_poll or "N/A"}
 
-# ── Main Logic ───────────────────────────────────────────────────
+def get_today_price_changes(db) -> list[dict]:
+    """获取今日所有价格变化"""
+    rows = db.execute("""
+        SELECT p1.hash_name, p1.price as current_price, p2.price as prev_price
+        FROM prices p1
+        JOIN prices p2 ON p1.hash_name = p2.hash_name
+        WHERE p1.recorded_at = (SELECT MAX(recorded_at) FROM prices WHERE hash_name = p1.hash_name)
+        AND p2.recorded_at = (
+            SELECT MAX(recorded_at) FROM prices 
+            WHERE hash_name = p1.hash_name AND recorded_at < p1.recorded_at
+        )
+        AND date(p1.recorded_at) = date('now')
+    """).fetchall()
+    
+    changes = []
+    for r in rows:
+        if r["prev_price"] and r["prev_price"] > 0:
+            change_pct = (r["current_price"] - r["prev_price"]) / r["prev_price"] * 100
+            changes.append({
+                "hash_name": r["hash_name"],
+                "change_pct": round(change_pct, 2),
+                "direction": "up" if change_pct > 0 else "down" if change_pct < 0 else "flat"
+            })
+    return changes
+
+# -- Main Logic ---------------------------------------------------
 def poll_and_detect():
-    """拉取全量价格，记录并检测异动"""
     if not ECO_PARTNER_ID or not ECO_PRIVATE_KEY_B64:
         logger.error("ECO credentials not set, aborting")
         sys.exit(1)
@@ -214,57 +232,83 @@ def poll_and_detect():
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     new_alerts = 0
     prices_snapshot = []
+    price_records = []
 
     if not items:
         logger.warning("Empty ResultData, writing empty snapshot")
     else:
         price_map = {it["HashName"]: it for it in items if "HashName" in it}
 
-        for name in MONITOR_ITEMS:
-            eco_item = price_map.get(name)
-            if not eco_item:
-                continue
+        with db_conn() as db:
+            for name in MONITOR_ITEMS:
+                eco_item = price_map.get(name)
+                if not eco_item:
+                    continue
 
-            current_price = float(eco_item.get("MarketComprePrice", 0))
-            sell_total = int(eco_item.get("SellingTotal", 0))
-            if current_price <= 0:
-                continue
+                current_price = float(eco_item.get("MarketComprePrice", 0))
+                sell_total = int(eco_item.get("SellingTotal", 0))
+                if current_price <= 0:
+                    continue
 
-            insert_price(name, current_price, sell_total)
+                price_records.append((name, current_price, sell_total))
 
-            snap = {"hash_name": name, "price": current_price, "sell_total": sell_total}
+                snap = {
+                    "hash_name": name,
+                    "price": current_price,
+                    "sell_total": sell_total,
+                }
 
-            # 检测异动
-            last = get_last_price(name)
-            # 注意：insert_price 刚插入了当前价，get_last_price 会返回刚插入的记录
-            # 需要取倒数第二条才是上一次
-            db = sqlite3.connect(DB_PATH)
-            db.row_factory = sqlite3.Row
-            prev = db.execute(
-                "SELECT * FROM prices WHERE hash_name=? ORDER BY recorded_at DESC LIMIT 1 OFFSET 1",
-                (name,),
-            ).fetchone()
-            db.close()
+                # 检测异动
+                prev = get_previous_price(db, name)
+                if prev and prev["price"] > 0:
+                    change_pct = (current_price - prev["price"]) / prev["price"] * 100
+                    snap["change_pct"] = round(change_pct, 2)
+                    if abs(change_pct) >= ALERT_THRESHOLD_PCT:
+                        direction = "up" if change_pct > 0 else "down"
+                        insert_alert(db, name, prev["price"], current_price, round(change_pct, 2), direction)
+                        new_alerts += 1
+                        emoji = "🔺" if direction == "up" else "🔻"
+                        logger.info("%s ALERT %s: ¥%.2f → ¥%.2f (%+.2f%%)",
+                                    emoji, name, prev["price"], current_price, change_pct)
+                else:
+                    snap["change_pct"] = None
 
-            if prev and prev["price"] > 0:
-                change_pct = (current_price - prev["price"]) / prev["price"] * 100
-                snap["change_pct"] = round(change_pct, 2)
-                if abs(change_pct) >= ALERT_THRESHOLD_PCT:
-                    direction = "up" if change_pct > 0 else "down"
-                    insert_alert(name, prev["price"], current_price, round(change_pct, 2), direction)
-                    new_alerts += 1
-                    emoji = "🔺" if direction == "up" else "🔻"
-                    logger.info("%s ALERT %s: ¥%.2f → ¥%.2f (%+.2f%%)",
-                                emoji, name, prev["price"], current_price, change_pct)
-            else:
-                snap["change_pct"] = None
+                # 获取24小时价格历史
+                history = get_price_history(db, name, hours=24)
+                snap["history"] = history
 
-            prices_snapshot.append(snap)
+                prices_snapshot.append(snap)
+
+            # 批量插入价格记录
+            if price_records:
+                insert_prices_batch(price_records)
+
+            # 获取统计数据
+            alerts = get_recent_alerts(db, limit=100)
+            stats = get_stats(db)
+            
+            # 计算涨跌分布
+            changes = get_today_price_changes(db)
+            up_count = sum(1 for c in changes if c["direction"] == "up")
+            down_count = sum(1 for c in changes if c["direction"] == "down")
+            flat_count = len(changes) - up_count - down_count
+            
+            avg_change = sum(c["change_pct"] for c in changes) / len(changes) if changes else 0
+            
+            # 找出最大涨跌
+            max_up = max((c for c in changes if c["direction"] == "up"), key=lambda x: x["change_pct"], default=None)
+            max_down = min((c for c in changes if c["direction"] == "down"), key=lambda x: x["change_pct"], default=None)
+
+            stats.update({
+                "up_count": up_count,
+                "down_count": down_count,
+                "flat_count": flat_count,
+                "avg_change_pct": round(avg_change, 2),
+                "max_up": max_up,
+                "max_down": max_down,
+            })
 
     # 生成 monitor_data.json
-    alerts = get_recent_alerts(limit=100)
-    stats = get_stats()
-
     output = {
         "updated_at": now_str,
         "stats": stats,
@@ -279,7 +323,7 @@ def poll_and_detect():
     logger.info("Written %s (%d bytes)", out_path, out_path.stat().st_size)
     logger.info("Done: %d prices, %d new alerts", len(prices_snapshot), new_alerts)
 
-# ── Entry ───────────────────────────────────────────────────────
+# -- Entry --------------------------------------------------------
 if __name__ == "__main__":
     init_db()
     logger.info("cs2-monitor starting...")
