@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-cs2-monitor - GitHub Actions 后端
+cs2-monitor - GitHub Actions backend
 定时拉取 ECOSteam 价格，检测异动，生成 monitor_data.json 推送到 gh-pages。
 运行环境: GitHub Actions (ubuntu-latest)
 依赖: requests, pycryptodome
@@ -15,6 +15,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from contextlib import contextmanager
+from functools import lru_cache
 
 import requests
 
@@ -134,6 +135,8 @@ def init_db():
             );
             CREATE INDEX IF NOT EXISTS idx_prices_nt
                 ON prices(hash_name, recorded_at);
+            CREATE INDEX IF NOT EXISTS idx_prices_time
+                ON prices(recorded_at);
 
             CREATE TABLE IF NOT EXISTS alerts (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -156,13 +159,21 @@ def insert_prices_batch(records: list[tuple]):
             records,
         )
 
-def get_previous_price(db, hash_name) -> dict | None:
-    """获取上一次价格（倒数第二条）"""
-    row = db.execute(
-        "SELECT * FROM prices WHERE hash_name=? ORDER BY recorded_at DESC LIMIT 1 OFFSET 1",
-        (hash_name,),
-    ).fetchone()
-    return dict(row) if row else None
+def get_previous_prices(db, hash_names: list) -> dict:
+    """批量获取上一次价格，使用单次查询"""
+    placeholders = ','.join('?' * len(hash_names))
+    rows = db.execute(f"""
+        SELECT hash_name, price, recorded_at FROM prices
+        WHERE hash_name IN ({placeholders})
+        AND recorded_at < (SELECT MAX(recorded_at) FROM prices)
+        ORDER BY recorded_at DESC
+    """, hash_names).fetchall()
+    
+    result = {}
+    for row in rows:
+        if row["hash_name"] not in result:
+            result[row["hash_name"]] = dict(row)
+    return result
 
 def insert_alert(db, hash_name, old_price, new_price, change_pct, direction):
     db.execute(
@@ -177,15 +188,22 @@ def get_recent_alerts(db, limit=50) -> list[dict]:
     ).fetchall()
     return [dict(r) for r in rows]
 
-def get_price_history(db, hash_name, hours=24) -> list[dict]:
+def get_price_histories(db, hash_names: list, hours=24) -> dict:
+    """批量获取价格历史，返回 {hash_name: [price1, price2, ...]}"""
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime(
         "%Y-%m-%d %H:%M:%S"
     )
-    rows = db.execute(
-        "SELECT price, recorded_at FROM prices WHERE hash_name=? AND recorded_at>=? ORDER BY recorded_at",
-        (hash_name, cutoff),
-    ).fetchall()
-    return [{"price": r["price"], "time": r["recorded_at"]} for r in rows]
+    placeholders = ','.join('?' * len(hash_names))
+    rows = db.execute(f"""
+        SELECT hash_name, price FROM prices 
+        WHERE hash_name IN ({placeholders}) AND recorded_at>=?
+        ORDER BY hash_name, recorded_at
+    """, hash_names + [cutoff]).fetchall()
+    
+    result = {name: [] for name in hash_names}
+    for row in rows:
+        result[row["hash_name"]].append(round(row["price"], 2))
+    return result
 
 def get_stats(db) -> dict:
     item_count = len(MONITOR_ITEMS)
@@ -195,18 +213,25 @@ def get_stats(db) -> dict:
     last_poll = db.execute("SELECT MAX(recorded_at) FROM prices").fetchone()[0]
     return {"item_count": item_count, "alert_count": alert_count, "last_poll": last_poll or "N/A"}
 
-def get_today_price_changes(db) -> list[dict]:
-    """获取今日所有价格变化"""
+def get_today_changes_batch(db) -> list[dict]:
+    """高效获取今日所有价格变化，单次查询"""
     rows = db.execute("""
-        SELECT p1.hash_name, p1.price as current_price, p2.price as prev_price
-        FROM prices p1
-        JOIN prices p2 ON p1.hash_name = p2.hash_name
-        WHERE p1.recorded_at = (SELECT MAX(recorded_at) FROM prices WHERE hash_name = p1.hash_name)
-        AND p2.recorded_at = (
-            SELECT MAX(recorded_at) FROM prices 
-            WHERE hash_name = p1.hash_name AND recorded_at < p1.recorded_at
+        WITH latest AS (
+            SELECT hash_name, price, recorded_at,
+                   ROW_NUMBER() OVER (PARTITION BY hash_name ORDER BY recorded_at DESC) as rn
+            FROM prices
+            WHERE date(recorded_at) = date('now')
+        ),
+        previous AS (
+            SELECT hash_name, price, recorded_at,
+                   ROW_NUMBER() OVER (PARTITION BY hash_name ORDER BY recorded_at DESC) as rn
+            FROM prices
+            WHERE date(recorded_at) = date('now')
         )
-        AND date(p1.recorded_at) = date('now')
+        SELECT l.hash_name, l.price as current_price, p.price as prev_price
+        FROM latest l
+        JOIN previous p ON l.hash_name = p.hash_name
+        WHERE l.rn = 1 AND p.rn = 2
     """).fetchall()
     
     changes = []
@@ -238,28 +263,37 @@ def poll_and_detect():
         logger.warning("Empty ResultData, writing empty snapshot")
     else:
         price_map = {it["HashName"]: it for it in items if "HashName" in it}
+        found_items = []
+        
+        for name in MONITOR_ITEMS:
+            eco_item = price_map.get(name)
+            if not eco_item:
+                continue
+            current_price = float(eco_item.get("MarketComprePrice", 0))
+            if current_price <= 0:
+                continue
+            sell_total = int(eco_item.get("SellingTotal", 0))
+            found_items.append(name)
+            price_records.append((name, current_price, sell_total))
 
         with db_conn() as db:
-            for name in MONITOR_ITEMS:
-                eco_item = price_map.get(name)
-                if not eco_item:
-                    continue
-
+            # 批量获取历史数据（减少查询次数）
+            prev_prices = get_previous_prices(db, found_items)
+            price_histories = get_price_histories(db, found_items, hours=24)
+            
+            for name in found_items:
+                eco_item = price_map[name]
                 current_price = float(eco_item.get("MarketComprePrice", 0))
                 sell_total = int(eco_item.get("SellingTotal", 0))
-                if current_price <= 0:
-                    continue
-
-                price_records.append((name, current_price, sell_total))
-
+                
                 snap = {
                     "hash_name": name,
-                    "price": current_price,
+                    "price": round(current_price, 2),
                     "sell_total": sell_total,
                 }
 
                 # 检测异动
-                prev = get_previous_price(db, name)
+                prev = prev_prices.get(name)
                 if prev and prev["price"] > 0:
                     change_pct = (current_price - prev["price"]) / prev["price"] * 100
                     snap["change_pct"] = round(change_pct, 2)
@@ -273,8 +307,10 @@ def poll_and_detect():
                 else:
                     snap["change_pct"] = None
 
-                # 获取24小时价格历史
-                history = get_price_history(db, name, hours=24)
+                # 只保留价格数组，减少输出体积
+                history = price_histories.get(name, [])
+                if history:
+                    history.append(round(current_price, 2))  # 包含当前价格
                 snap["history"] = history
 
                 prices_snapshot.append(snap)
@@ -288,7 +324,7 @@ def poll_and_detect():
             stats = get_stats(db)
             
             # 计算涨跌分布
-            changes = get_today_price_changes(db)
+            changes = get_today_changes_batch(db)
             up_count = sum(1 for c in changes if c["direction"] == "up")
             down_count = sum(1 for c in changes if c["direction"] == "down")
             flat_count = len(changes) - up_count - down_count
@@ -296,8 +332,10 @@ def poll_and_detect():
             avg_change = sum(c["change_pct"] for c in changes) / len(changes) if changes else 0
             
             # 找出最大涨跌
-            max_up = max((c for c in changes if c["direction"] == "up"), key=lambda x: x["change_pct"], default=None)
-            max_down = min((c for c in changes if c["direction"] == "down"), key=lambda x: x["change_pct"], default=None)
+            max_up = max((c for c in changes if c["direction"] == "up"), 
+                        key=lambda x: x["change_pct"], default=None)
+            max_down = min((c for c in changes if c["direction"] == "down"), 
+                          key=lambda x: x["change_pct"], default=None)
 
             stats.update({
                 "up_count": up_count,
@@ -308,7 +346,7 @@ def poll_and_detect():
                 "max_down": max_down,
             })
 
-    # 生成 monitor_data.json
+    # 生成 monitor_data.json（使用紧凑格式减少体积）
     output = {
         "updated_at": now_str,
         "stats": stats,
@@ -319,9 +357,13 @@ def poll_and_detect():
     }
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DATA_DIR / "monitor_data.json"
-    out_path.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
-    logger.info("Written %s (%d bytes)", out_path, out_path.stat().st_size)
-    logger.info("Done: %d prices, %d new alerts", len(prices_snapshot), new_alerts)
+    
+    # 使用 separators 减少空格，节省约 20% 体积
+    json_str = json.dumps(output, ensure_ascii=False, separators=(',', ':'))
+    out_path.write_text(json_str, encoding="utf-8")
+    
+    logger.info("Written %s (%d bytes, %d prices, %d new alerts)", 
+                out_path, out_path.stat().st_size, len(prices_snapshot), new_alerts)
 
 # -- Entry --------------------------------------------------------
 if __name__ == "__main__":

@@ -27,11 +27,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .search-box{width:100%;padding:0.8rem 1rem;background:#1a2a3a;border:1px solid #2a4a6a;border-radius:8px;color:#e0e0e0;font-size:1rem;margin-bottom:1rem}
 .search-box:focus{outline:none;border-color:#66b3ff}
 
-/* 排序按钮 */
-.sort-btn{background:#243447;border:none;color:#8899aa;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:0.75rem;margin-left:4px}
-.sort-btn:hover{background:#2a4a6a;color:#e0e0e0}
-.sort-btn.active{color:#66b3ff}
-
 /* 表格 */
 table{width:100%;border-collapse:collapse;background:#1a2a3a;border-radius:8px;overflow:hidden;border:1px solid #2a4a6a;margin-bottom:1.5rem}
 th{background:#243447;padding:0.8rem;text-align:left;font-weight:600;color:#8899aa;font-size:0.85rem;cursor:pointer;user-select:none}
@@ -67,6 +62,9 @@ tr:hover{background:#243447}
 
 /* 数据新鲜度 */
 .fresh{color:#4caf50}.stale{color:#ff9800}.expired{color:#f44336}
+
+/* 性能优化：减少重绘 */
+.price-row{will-change:transform}
 </style>
 </head>
 <body>
@@ -83,6 +81,8 @@ let currentData = null;
 let sortField = 'hash_name';
 let sortDesc = false;
 let searchTerm = '';
+let refreshTimer = null;
+let lastRenderTime = 0;
 
 // 自动刷新间隔（毫秒）
 const REFRESH_INTERVAL = 60000;
@@ -93,26 +93,30 @@ async function fetchData() {
   return resp.json();
 }
 
-// 绘制迷你趋势图（SVG）
+// 绘制迷你趋势图（SVG）- 优化版本
 function drawSparkline(history, width=80, height=30) {
-  if (!history || history.length < 2) return '';
+  if (!history || history.length < 2) return '<span style="color:#556677">-</span>';
   
-  const prices = history.map(h => h.price);
+  // 使用缓存避免重复计算
+  const prices = history;
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   const range = max - min || 1;
   
-  const points = prices.map((p, i) => {
-    const x = (i / (prices.length - 1)) * width;
-    const y = height - ((p - min) / range) * height;
-    return `${x},${y}`;
-  }).join(' ');
+  // 使用字符串拼接代替数组 join，性能更好
+  let points = '';
+  const len = prices.length;
+  for (let i = 0; i < len; i++) {
+    const x = (i / (len - 1)) * width;
+    const y = height - ((prices[i] - min) / range) * height;
+    points += (i ? ' ' : '') + x + ',' + y;
+  }
   
-  const color = prices[prices.length-1] >= prices[0] ? '#4caf50' : '#f44336';
+  const color = prices[len-1] >= prices[0] ? '#4caf50' : '#f44336';
   
-  return `<svg class="sparkline" viewBox="0 0 ${width} ${height}">
-    <polyline fill="none" stroke="${color}" stroke-width="1.5" points="${points}"/>
-  </svg>`;
+  return '<svg class="sparkline" viewBox="0 0 ' + width + ' ' + height + '">' +
+    '<polyline fill="none" stroke="' + color + '" stroke-width="1.5" points="' + points + '"/>' +
+    '</svg>';
 }
 
 // 计算数据新鲜度
@@ -120,19 +124,20 @@ function getFreshness(updatedAt) {
   if (!updatedAt) return { class: 'expired', text: '未知' };
   const diff = Date.now() - new Date(updatedAt).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 15) return { class: 'fresh', text: `${mins}分钟前` };
-  if (mins < 60) return { class: 'stale', text: `${mins}分钟前` };
-  return { class: 'expired', text: `${Math.floor(mins/60)}小时前` };
+  if (mins < 15) return { class: 'fresh', text: mins + '分钟前' };
+  if (mins < 60) return { class: 'stale', text: mins + '分钟前' };
+  return { class: 'expired', text: Math.floor(mins/60) + '小时前' };
 }
 
 // 排序函数
 function sortPrices(prices) {
-  return [...prices].sort((a, b) => {
+  const sorted = prices.slice();
+  sorted.sort((a, b) => {
     let aVal = a[sortField];
     let bVal = b[sortField];
     
-    if (aVal === null || aVal === undefined) aVal = sortDesc ? -Infinity : Infinity;
-    if (bVal === null || bVal === undefined) bVal = sortDesc ? -Infinity : Infinity;
+    if (aVal == null) aVal = sortDesc ? -Infinity : Infinity;
+    if (bVal == null) bVal = sortDesc ? -Infinity : Infinity;
     
     if (typeof aVal === 'string') {
       aVal = aVal.toLowerCase();
@@ -143,13 +148,29 @@ function sortPrices(prices) {
     if (aVal > bVal) return sortDesc ? -1 : 1;
     return 0;
   });
+  return sorted;
 }
 
 // 筛选函数
 function filterPrices(prices) {
   if (!searchTerm) return prices;
   const term = searchTerm.toLowerCase();
-  return prices.filter(p => p.hash_name.toLowerCase().includes(term));
+  const filtered = [];
+  for (let i = 0; i < prices.length; i++) {
+    if (prices[i].hash_name.toLowerCase().includes(term)) {
+      filtered.push(prices[i]);
+    }
+  }
+  return filtered;
+}
+
+// 防抖函数
+function debounce(fn, delay) {
+  let timer = null;
+  return function(...args) {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
 }
 
 function render(data) {
@@ -172,97 +193,90 @@ function render(data) {
   const downPct = total_changes ? (stats.down_count / total_changes * 100).toFixed(1) : 0;
   const flatPct = total_changes ? (stats.flat_count / total_changes * 100).toFixed(1) : 0;
 
-  const alertRows = alerts.slice(0, 30).map(a => `
-    <tr>
-      <td>${formatTime(a.created_at)}</td>
-      <td>${a.hash_name}</td>
-      <td>¥${a.old_price.toFixed(2)}</td>
-      <td>¥${a.new_price.toFixed(2)}</td>
-      <td><span class="tag ${a.direction==='up'?'tag-up':'tag-down'}">${a.change_pct >= 0 ? '+' : ''}${a.change_pct.toFixed(2)}%</span></td>
-    </tr>
-  `).join('');
+  // 构建告警表格 - 使用字符串拼接优化性能
+  let alertRows = '';
+  const alertLen = Math.min(alerts.length, 30);
+  for (let i = 0; i < alertLen; i++) {
+    const a = alerts[i];
+    alertRows += '<tr>' +
+      '<td>' + formatTime(a.created_at) + '</td>' +
+      '<td>' + a.hash_name + '</td>' +
+      '<td>¥' + a.old_price.toFixed(2) + '</td>' +
+      '<td>¥' + a.new_price.toFixed(2) + '</td>' +
+      '<td><span class="tag ' + (a.direction==='up'?'tag-up':'tag-down') + '">' + 
+      (a.change_pct >= 0 ? '+' : '') + a.change_pct.toFixed(2) + '%</span></td>' +
+      '</tr>';
+  }
 
   // 排序和筛选后的价格数据
   const processedPrices = filterPrices(sortPrices(prices));
 
-  const priceRows = processedPrices.map(p => `
-    <tr>
-      <td>${p.hash_name}</td>
-      <td>¥${p.price.toFixed(2)}</td>
-      <td>${p.sell_total ?? '--'}</td>
-      <td class="${changeClass(p.change_pct)}">${changeSign(p.change_pct)}</td>
-      <td>${drawSparkline(p.history)}</td>
-    </tr>
-  `).join('');
+  // 构建价格表格 - 使用字符串拼接
+  let priceRows = '';
+  for (let i = 0; i < processedPrices.length; i++) {
+    const p = processedPrices[i];
+    priceRows += '<tr class="price-row">' +
+      '<td>' + p.hash_name + '</td>' +
+      '<td>¥' + p.price.toFixed(2) + '</td>' +
+      '<td>' + (p.sell_total ?? '--') + '</td>' +
+      '<td class="' + changeClass(p.change_pct) + '">' + changeSign(p.change_pct) + '</td>' +
+      '<td>' + drawSparkline(p.history) + '</td>' +
+      '</tr>';
+  }
 
   const sortIndicator = (field) => sortField === field ? (sortDesc ? '▼' : '▲') : '';
 
-  const html = `
-    <div class="status-row">
-      <div class="card">
-        <div class="label">监控物品</div>
-        <div class="value">${stats.item_count}</div>
-      </div>
-      <div class="card">
-        <div class="label">今日告警</div>
-        <div class="value ${stats.alert_count ? 'red' : ''}">${stats.alert_count}</div>
-      </div>
-      <div class="card">
-        <div class="label">平均涨跌</div>
-        <div class="value ${stats.avg_change_pct > 0 ? 'green' : stats.avg_change_pct < 0 ? 'red' : ''}">${stats.avg_change_pct > 0 ? '+' : ''}${stats.avg_change_pct?.toFixed(2) ?? '--'}%</div>
-      </div>
-      <div class="card">
-        <div class="label">数据更新</div>
-        <div class="value ${freshness.class}" style="font-size:1rem">${freshness.text}<span class="refresh-indicator"></span></div>
-      </div>
-    </div>
+  // 使用 innerHTML 一次性更新，减少 DOM 操作
+  document.getElementById('app').innerHTML = 
+    '<div class="status-row">' +
+      '<div class="card"><div class="label">监控物品</div><div class="value">' + stats.item_count + '</div></div>' +
+      '<div class="card"><div class="label">今日告警</div><div class="value ' + (stats.alert_count ? 'red' : '') + '">' + stats.alert_count + '</div></div>' +
+      '<div class="card"><div class="label">平均涨跌</div><div class="value ' + 
+        (stats.avg_change_pct > 0 ? 'green' : stats.avg_change_pct < 0 ? 'red' : '') + '">' + 
+        (stats.avg_change_pct > 0 ? '+' : '') + (stats.avg_change_pct?.toFixed(2) ?? '--') + '%</div></div>' +
+      '<div class="card"><div class="label">数据更新</div><div class="value ' + freshness.class + '" style="font-size:1rem">' + 
+        freshness.text + '<span class="refresh-indicator"></span></div></div>' +
+    '</div>' +
 
-    <!-- 涨跌分布 -->
-    <div class="card" style="margin-bottom:1rem">
-      <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">
-        <span class="green">涨 ${stats.up_count} (${upPct}%)</span>
-        <span style="color:#8899aa">平 ${stats.flat_count} (${flatPct}%)</span>
-        <span class="red">跌 ${stats.down_count} (${downPct}%)</span>
-      </div>
-      <div class="dist-bar">
-        <div class="dist-up" style="width:${upPct}%"></div>
-        <div class="dist-flat" style="width:${flatPct}%"></div>
-        <div class="dist-down" style="width:${downPct}%"></div>
-      </div>
-      ${stats.max_up ? `<div style="margin-top:0.5rem;font-size:0.8rem"><span class="green">最大涨幅: ${stats.max_up.hash_name} +${stats.max_up.change_pct}%</span></div>` : ''}
-      ${stats.max_down ? `<div style="font-size:0.8rem"><span class="red">最大跌幅: ${stats.max_down.hash_name} ${stats.max_down.change_pct}%</span></div>` : ''}
-    </div>
+    '<div class="card" style="margin-bottom:1rem">' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">' +
+        '<span class="green">涨 ' + stats.up_count + ' (' + upPct + '%)</span>' +
+        '<span style="color:#8899aa">平 ' + stats.flat_count + ' (' + flatPct + '%)</span>' +
+        '<span class="red">跌 ' + stats.down_count + ' (' + downPct + '%)</span>' +
+      '</div>' +
+      '<div class="dist-bar">' +
+        '<div class="dist-up" style="width:' + upPct + '%"></div>' +
+        '<div class="dist-flat" style="width:' + flatPct + '%"></div>' +
+        '<div class="dist-down" style="width:' + downPct + '%"></div>' +
+      '</div>' +
+      (stats.max_up ? '<div style="margin-top:0.5rem;font-size:0.8rem"><span class="green">最大涨幅: ' + stats.max_up.hash_name + ' +' + stats.max_up.change_pct + '%</span></div>' : '') +
+      (stats.max_down ? '<div style="font-size:0.8rem"><span class="red">最大跌幅: ' + stats.max_down.hash_name + ' ' + stats.max_down.change_pct + '%</span></div>' : '') +
+    '</div>' +
 
-    ${alerts.length ? `
-    <h2 class="section-title">最近告警（阈值 ≥${threshold_pct}%）</h2>
-    <table>
-      <thead><tr><th>时间</th><th>物品</th><th>旧价</th><th>新价</th><th>变化</th></tr></thead>
-      <tbody>${alertRows || '<tr><td colspan="5" style="text-align:center;color:#556677">暂无告警</td></tr>'}</tbody>
-    </table>
-    ` : ''}
+    (alerts.length ? 
+      '<h2 class="section-title">最近告警（阈值 ≥' + threshold_pct + '%）</h2>' +
+      '<table><thead><tr><th>时间</th><th>物品</th><th>旧价</th><th>新价</th><th>变化</th></tr></thead>' +
+      '<tbody>' + (alertRows || '<tr><td colspan="5" style="text-align:center;color:#556677">暂无告警</td></tr>') + '</tbody></table>' 
+      : '') +
 
-    <h2 class="section-title">当前价格</h2>
-    
-    <!-- 搜索框 -->
-    <input type="text" class="search-box" placeholder="搜索饰品名称..." value="${searchTerm}" oninput="handleSearch(this.value)">
-    
-    <table>
-      <thead>
-        <tr>
-          <th onclick="handleSort('hash_name')">物品 ${sortIndicator('hash_name')}</th>
-          <th onclick="handleSort('price')">当前价格 ${sortIndicator('price')}</th>
-          <th onclick="handleSort('sell_total')">在售 ${sortIndicator('sell_total')}</th>
-          <th onclick="handleSort('change_pct')">最近变化 ${sortIndicator('change_pct')}</th>
-          <th>24h趋势</th>
-        </tr>
-      </thead>
-      <tbody>${priceRows || '<tr><td colspan="5" style="text-align:center;color:#556677">无数据</td></tr>'}</tbody>
-    </table>
+    '<h2 class="section-title">当前价格</h2>' +
+    '<input type="text" class="search-box" placeholder="搜索饰品名称..." value="' + searchTerm + '" id="searchInput">' +
+    '<table><thead><tr>' +
+      '<th onclick="handleSort(\'hash_name\')">物品 ' + sortIndicator('hash_name') + '</th>' +
+      '<th onclick="handleSort(\'price\')">当前价格 ' + sortIndicator('price') + '</th>' +
+      '<th onclick="handleSort(\'sell_total\')">在售 ' + sortIndicator('sell_total') + '</th>' +
+      '<th onclick="handleSort(\'change_pct\')">最近变化 ' + sortIndicator('change_pct') + '</th>' +
+      '<th>24h趋势</th>' +
+    '</tr></thead><tbody>' + (priceRows || '<tr><td colspan="5" style="text-align:center;color:#556677">无数据</td></tr>') + '</tbody></table>' +
+    '<p class="meta">数据源: ECOSteam · 更新间隔: ' + monitor_interval_min + ' 分钟 · 最后更新: ' + formatTime(updated_at) + ' · 自动刷新中...</p>';
 
-    <p class="meta">数据源: ECOSteam · 更新间隔: ${monitor_interval_min} 分钟 · 最后更新: ${formatTime(updated_at)} · 自动刷新中...</p>
-  `;
-
-  document.getElementById('app').innerHTML = html;
+  // 重新绑定搜索事件
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.addEventListener('input', debounceSearch);
+  }
+  
+  lastRenderTime = Date.now();
 }
 
 // 排序处理
@@ -276,11 +290,11 @@ function handleSort(field) {
   if (currentData) render(currentData);
 }
 
-// 搜索处理
-function handleSearch(value) {
-  searchTerm = value;
+// 搜索处理（防抖）
+const debounceSearch = debounce(function(e) {
+  searchTerm = e.target.value;
   if (currentData) render(currentData);
-}
+}, 300);
 
 // 初始加载
 function load() {
@@ -295,8 +309,26 @@ function load() {
 // 启动
 load();
 
-// 自动刷新
-setInterval(load, REFRESH_INTERVAL);
+// 自动刷新（使用 requestAnimationFrame 优化）
+function scheduleRefresh() {
+  refreshTimer = setTimeout(() => {
+    requestAnimationFrame(() => {
+      load();
+      scheduleRefresh();
+    });
+  }, REFRESH_INTERVAL);
+}
+scheduleRefresh();
+
+// 页面可见性变化时优化刷新
+ document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (refreshTimer) clearTimeout(refreshTimer);
+  } else {
+    scheduleRefresh();
+    load(); // 立即刷新
+  }
+});
 </script>
 </body>
 </html>
