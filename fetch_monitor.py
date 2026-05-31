@@ -245,6 +245,54 @@ def get_today_changes_batch(db) -> list[dict]:
             })
     return changes
 
+def get_price_stats(db, hash_name: str) -> dict:
+    """获取指定饰品的价格统计信息"""
+    row = db.execute("""
+        SELECT 
+            MIN(price) as min_price,
+            MAX(price) as max_price,
+            AVG(price) as avg_price,
+            COUNT(*) as data_points
+        FROM prices 
+        WHERE hash_name = ? AND recorded_at >= datetime('now', '-7 days')
+    """, (hash_name,)).fetchone()
+    
+    if not row or row["data_points"] == 0:
+        return {}
+    
+    return {
+        "min_7d": round(row["min_price"], 2),
+        "max_7d": round(row["max_price"], 2),
+        "avg_7d": round(row["avg_price"], 2),
+        "data_points": row["data_points"]
+    }
+
+def get_volatility_ranking(db, limit=10) -> list[dict]:
+    """获取波动率排行（标准差/均值）"""
+    rows = db.execute("""
+        SELECT 
+            hash_name,
+            AVG(price) as avg_price,
+            SQRT(AVG(price*price) - AVG(price)*AVG(price)) as std_dev
+        FROM prices 
+        WHERE recorded_at >= datetime('now', '-24 hours')
+        GROUP BY hash_name
+        HAVING COUNT(*) >= 3
+        ORDER BY (std_dev / avg_price) DESC
+        LIMIT ?
+    """, (limit,)).fetchall()
+    
+    result = []
+    for r in rows:
+        if r["avg_price"] and r["avg_price"] > 0:
+            volatility = (r["std_dev"] / r["avg_price"]) * 100 if r["std_dev"] else 0
+            result.append({
+                "hash_name": r["hash_name"],
+                "volatility_pct": round(volatility, 2),
+                "avg_price": round(r["avg_price"], 2)
+            })
+    return result
+
 # -- Main Logic ---------------------------------------------------
 def poll_and_detect():
     if not ECO_PARTNER_ID or not ECO_PRIVATE_KEY_B64:
@@ -336,6 +384,15 @@ def poll_and_detect():
                         key=lambda x: x["change_pct"], default=None)
             max_down = min((c for c in changes if c["direction"] == "down"), 
                           key=lambda x: x["change_pct"], default=None)
+            
+            # 获取波动率排行
+            volatility_ranking = get_volatility_ranking(db, limit=5)
+            
+            # 为每个价格添加统计信息
+            for snap in prices_snapshot:
+                stats_info = get_price_stats(db, snap["hash_name"])
+                if stats_info:
+                    snap["stats_7d"] = stats_info
 
             stats.update({
                 "up_count": up_count,
@@ -344,6 +401,7 @@ def poll_and_detect():
                 "avg_change_pct": round(avg_change, 2),
                 "max_up": max_up,
                 "max_down": max_down,
+                "volatility_ranking": volatility_ranking,
             })
 
     # 生成 monitor_data.json（使用紧凑格式减少体积）
@@ -354,6 +412,7 @@ def poll_and_detect():
         "alerts": alerts,
         "threshold_pct": ALERT_THRESHOLD_PCT,
         "monitor_interval_min": 10,
+        "version": "2.0",
     }
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DATA_DIR / "monitor_data.json"

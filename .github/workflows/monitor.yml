@@ -1,40 +1,54 @@
-name: CS2 Monitor Update
+name: CS2 Monitor
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # 每10分钟
-  workflow_dispatch:          # 手动触发
+    - cron: '*/10 * * * *'  # 每10分钟运行一次
+  workflow_dispatch:  # 允许手动触发
 
 permissions:
   contents: write
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
-  update:
+  monitor:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: pip install requests pycryptodome
-
-      - name: Fetch & Detect
-        env:
-          ECO_PARTNER_ID: ${{ secrets.ECO_PARTNER_ID }}
-          ECO_PRIVATE_KEY_B64: ${{ secrets.ECO_PRIVATE_KEY_B64 }}
-          ALERT_THRESHOLD_PCT: ${{ vars.ALERT_THRESHOLD_PCT || '5.0' }}
-        run: python fetch_monitor.py
-
-      - name: Commit & Push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # 文件可能不存在（API 返回空数据时），用 --ignore-errors 避免 fatal
-          git add --ignore-errors docs/monitor_data.json docs/monitor.db
-          git diff --staged --quiet || (git commit -m "monitor: auto update [skip ci]" && git push)
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        pip install requests pycryptodome
+        
+    - name: Run monitor
+      env:
+        ECO_PARTNER_ID: ${{ secrets.ECO_PARTNER_ID }}
+        ECO_PRIVATE_KEY_B64: ${{ secrets.ECO_PRIVATE_KEY_B64 }}
+        ALERT_THRESHOLD_PCT: ${{ vars.ALERT_THRESHOLD_PCT || '5.0' }}
+      run: python fetch_monitor.py
+      
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+      
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: './docs'
+        
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4

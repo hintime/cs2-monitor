@@ -6,65 +6,127 @@
 <title>CS2 Monitor - 饰品异动监控</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1923;color:#e0e0e0;min-height:100vh}
-.header{background:linear-gradient(135deg,#1a2a3a,#0f1923);padding:2rem;text-align:center;border-bottom:2px solid #2a4a6a}
-.header h1{font-size:2rem;color:#66b3ff}
-.header em{color:#8899aa;font-style:normal}
-.container{max-width:1200px;margin:0 auto;padding:1.5rem}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0e1a;color:#e0e0e0;min-height:100vh}
+
+/* 头部 */
+.header{background:linear-gradient(135deg,#1a2332,#0a0e1a);padding:2rem;text-align:center;border-bottom:2px solid #2a4a6a;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#66b3ff,transparent);animation:scan 3s linear infinite}
+@keyframes scan{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.header h1{font-size:2.2rem;color:#66b3ff;text-shadow:0 0 20px rgba(102,179,255,0.3)}
+.header em{color:#8899aa;font-style:normal;font-size:0.95rem}
+
+.container{max-width:1400px;margin:0 auto;padding:1.5rem}
+
+/* 状态卡片 */
 .status-row{display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap}
-.card{background:#1a2a3a;border-radius:8px;padding:1.2rem;flex:1;min-width:160px;border:1px solid #2a4a6a;text-align:center}
-.card .label{font-size:0.8rem;color:#8899aa;text-transform:uppercase}
-.card .value{font-size:1.8rem;font-weight:700;margin-top:0.3rem}
+.card{background:linear-gradient(145deg,#1a2332,#121820);border-radius:12px;padding:1.5rem;flex:1;min-width:160px;border:1px solid #2a3a4a;text-align:center;transition:transform 0.2s,box-shadow 0.2s;position:relative;overflow:hidden}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,0.3)}
+.card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#66b3ff,#4caf50,#f44336);opacity:0.7}
+.card .label{font-size:0.75rem;color:#8899aa;text-transform:uppercase;letter-spacing:1px}
+.card .value{font-size:2rem;font-weight:700;margin-top:0.5rem;background:linear-gradient(135deg,#fff,#66b3ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.card .sub-value{font-size:0.85rem;color:#8899aa;margin-top:0.3rem}
+
 .red{color:#f44336}.green{color:#4caf50}.blue{color:#66b3ff}
 
 /* 涨跌分布条 */
-.dist-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:0.5rem;background:#243447}
-.dist-up{background:#4caf50}
-.dist-flat{background:#8899aa}
-.dist-down{background:#f44336}
+.dist-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:0.8rem;background:#1a2332;box-shadow:inset 0 1px 3px rgba(0,0,0,0.3)}
+.dist-up{background:linear-gradient(90deg,#2e7d32,#4caf50);transition:width 0.5s ease}
+.dist-flat{background:linear-gradient(90deg,#555,#8899aa);transition:width 0.5s ease}
+.dist-down{background:linear-gradient(90deg,#c62828,#f44336);transition:width 0.5s ease}
 
 /* 搜索框 */
-.search-box{width:100%;padding:0.8rem 1rem;background:#1a2a3a;border:1px solid #2a4a6a;border-radius:8px;color:#e0e0e0;font-size:1rem;margin-bottom:1rem}
-.search-box:focus{outline:none;border-color:#66b3ff}
+.search-box{width:100%;padding:1rem 1.2rem;background:#1a2332;border:1px solid #2a3a4a;border-radius:10px;color:#e0e0e0;font-size:1rem;margin-bottom:1rem;transition:border-color 0.2s,box-shadow 0.2s}
+.search-box:focus{outline:none;border-color:#66b3ff;box-shadow:0 0 0 3px rgba(102,179,255,0.1)}
+.search-box::placeholder{color:#556677}
+
+/* 筛选标签 */
+.filter-tabs{display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap}
+.filter-tab{padding:0.5rem 1rem;background:#1a2332;border:1px solid #2a3a4a;border-radius:20px;cursor:pointer;font-size:0.85rem;transition:all 0.2s;color:#8899aa}
+.filter-tab:hover{background:#243447;color:#e0e0e0}
+.filter-tab.active{background:linear-gradient(135deg,#66b3ff,#4a90d9);color:#fff;border-color:transparent}
 
 /* 表格 */
-table{width:100%;border-collapse:collapse;background:#1a2a3a;border-radius:8px;overflow:hidden;border:1px solid #2a4a6a;margin-bottom:1.5rem}
-th{background:#243447;padding:0.8rem;text-align:left;font-weight:600;color:#8899aa;font-size:0.85rem;cursor:pointer;user-select:none}
-th:hover{background:#2a4a6a}
-td{padding:0.8rem;border-bottom:1px solid #243447}
+table{width:100%;border-collapse:separate;border-spacing:0;background:#1a2332;border-radius:12px;overflow:hidden;border:1px solid #2a3a4a;margin-bottom:1.5rem}
+th{background:linear-gradient(145deg,#243447,#1a2a3a);padding:1rem;text-align:left;font-weight:600;color:#8899aa;font-size:0.85rem;cursor:pointer;user-select:none;position:sticky;top:0;z-index:10}
+th:hover{background:linear-gradient(145deg,#2a4a6a,#243447);color:#e0e0e0}
+th:first-child{border-radius:12px 0 0 0}
+th:last-child{border-radius:0 12px 0 0}
+td{padding:1rem;border-bottom:1px solid #243447;transition:background 0.2s}
 tr:last-child td{border-bottom:none}
-tr:hover{background:#243447}
-.price-up{color:#4caf50}.price-down{color:#f44336}
+tr:hover td{background:rgba(102,179,255,0.05)}
+.price-up{color:#4caf50;font-weight:600}.price-down{color:#f44336;font-weight:600}
 
 /* 迷你趋势图 */
-.sparkline{width:80px;height:30px}
+.sparkline{width:100px;height:35px}
 
 /* 标签 */
-.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600}
-.tag-up{background:#1b3a1b;color:#4caf50}.tag-down{background:#3a1b1b;color:#f44336}
+.tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:600}
+.tag-up{background:linear-gradient(135deg,#1b5e20,#2e7d32);color:#81c784}.tag-down{background:linear-gradient(135deg,#b71c1c,#c62828);color:#ef9a9a}
 
-.section-title{font-size:1.2rem;margin:1.5rem 0 1rem;color:#66b3ff;display:flex;align-items:center;gap:0.5rem}
-.meta{text-align:center;color:#556677;font-size:0.8rem;margin-top:1.5rem}
+/* 告警卡片 */
+.alert-card{background:linear-gradient(145deg,#1a2332,#121820);border-radius:12px;padding:1.2rem;margin-bottom:0.8rem;border:1px solid #2a3a4a;border-left:4px solid #f44336;transition:transform 0.2s}
+.alert-card:hover{transform:translateX(5px)}
+.alert-card.up{border-left-color:#4caf50}
+.alert-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem}
+.alert-title{font-weight:600;color:#e0e0e0}
+.alert-time{font-size:0.75rem;color:#556677}
+.alert-body{display:flex;gap:1rem;align-items:center}
+.alert-price{font-size:1.1rem;color:#66b3ff}
+.alert-arrow{color:#8899aa}
+.alert-change{font-size:1.2rem;font-weight:700}
+
+.section-title{font-size:1.3rem;margin:2rem 0 1rem;color:#66b3ff;display:flex;align-items:center;gap:0.5rem;font-weight:600}
+.section-title::before{content:'';display:inline-block;width:4px;height:1.3rem;background:linear-gradient(180deg,#66b3ff,#4a90d9);border-radius:2px}
+
+.meta{text-align:center;color:#556677;font-size:0.8rem;margin-top:2rem;padding:1rem;background:#1a2332;border-radius:8px}
 .loading{text-align:center;padding:4rem;color:#556677}
 
 /* 自动刷新指示器 */
 .refresh-indicator{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4caf50;margin-left:0.5rem;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 
+/* 图表容器 */
+.chart-container{background:#1a2332;border-radius:12px;padding:1.5rem;border:1px solid #2a3a4a;margin-bottom:1.5rem}
+.chart-title{font-size:1rem;color:#8899aa;margin-bottom:1rem}
+
+/* 价格详情弹窗 */
+.modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;justify-content:center;align-items:center;padding:2rem}
+.modal.active{display:flex}
+.modal-content{background:linear-gradient(145deg,#1a2332,#121820);border-radius:16px;padding:2rem;max-width:800px;width:100%;max-height:90vh;overflow-y:auto;border:1px solid #2a3a4a;box-shadow:0 20px 60px rgba(0,0,0,0.5)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+.modal-title{font-size:1.5rem;color:#66b3ff}
+.modal-close{background:none;border:none;color:#8899aa;font-size:1.5rem;cursor:pointer;padding:0.5rem;transition:color 0.2s}
+.modal-close:hover{color:#f44336}
+
+/* 统计网格 */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem}
+.stat-item{background:#121820;padding:1rem;border-radius:8px;text-align:center}
+.stat-label{font-size:0.75rem;color:#8899aa;margin-bottom:0.3rem}
+.stat-value{font-size:1.5rem;font-weight:700;color:#66b3ff}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
   .header h1{font-size:1.5rem}
-  .card{min-width:100px;padding:0.8rem}
-  .card .value{font-size:1.2rem}
-  th,td{padding:0.5rem;font-size:0.8rem}
+  .card{min-width:100px;padding:1rem}
+  .card .value{font-size:1.5rem}
+  th,td{padding:0.8rem;font-size:0.8rem}
   .sparkline{width:60px;height:24px}
+  .modal{padding:1rem}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
 }
 
 /* 数据新鲜度 */
 .fresh{color:#4caf50}.stale{color:#ff9800}.expired{color:#f44336}
 
-/* 性能优化：减少重绘 */
-.price-row{will-change:transform}
+/* 滚动条美化 */
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-track{background:#0a0e1a}
+::-webkit-scrollbar-thumb{background:#2a3a4a;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#3a4a5a}
+
+/* 加载动画 */
+.skeleton{background:linear-gradient(90deg,#1a2332 25%,#243447 50%,#1a2332 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 </style>
 </head>
 <body>
@@ -73,16 +135,34 @@ tr:hover{background:#243447}
   <em>饰品价格异动监控 · ECOSteam 数据</em>
 </div>
 <div class="container" id="app">
-  <div class="loading">加载数据中...</div>
+  <div class="loading">
+    <div style="font-size:3rem;margin-bottom:1rem">📊</div>
+    <div>加载数据中...</div>
+    <div style="margin-top:1rem;font-size:0.8rem;color:#556677">正在连接 ECOSteam API</div>
+  </div>
 </div>
+
+<!-- 详情弹窗 -->
+<div class="modal" id="detailModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">饰品详情</div>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
 <script>
 // 全局状态
 let currentData = null;
 let sortField = 'hash_name';
 let sortDesc = false;
 let searchTerm = '';
+let activeFilter = 'all';
 let refreshTimer = null;
 let lastRenderTime = 0;
+let priceChart = null;
 
 // 自动刷新间隔（毫秒）
 const REFRESH_INTERVAL = 60000;
@@ -93,17 +173,15 @@ async function fetchData() {
   return resp.json();
 }
 
-// 绘制迷你趋势图（SVG）- 优化版本
-function drawSparkline(history, width=80, height=30) {
+// 绘制迷你趋势图（SVG）
+function drawSparkline(history, width=100, height=35) {
   if (!history || history.length < 2) return '<span style="color:#556677">-</span>';
   
-  // 使用缓存避免重复计算
   const prices = history;
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   const range = max - min || 1;
   
-  // 使用字符串拼接代替数组 join，性能更好
   let points = '';
   const len = prices.length;
   for (let i = 0; i < len; i++) {
@@ -115,7 +193,10 @@ function drawSparkline(history, width=80, height=30) {
   const color = prices[len-1] >= prices[0] ? '#4caf50' : '#f44336';
   
   return '<svg class="sparkline" viewBox="0 0 ' + width + ' ' + height + '">' +
-    '<polyline fill="none" stroke="' + color + '" stroke-width="1.5" points="' + points + '"/>' +
+    '<defs><linearGradient id="grad' + len + '" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:' + color + ';stop-opacity:0.3"/><stop offset="100%" style="stop-color:' + color + ';stop-opacity:0"/></linearGradient></defs>' +
+    '<polygon fill="url(#grad' + len + ')" points="0,' + height + ' ' + points + ' ' + width + ',' + height + '"/>' +
+    '<polyline fill="none" stroke="' + color + '" stroke-width="2" points="' + points + '"/>' +
+    '<circle cx="' + width + '" cy="' + (height - ((prices[len-1] - min) / range) * height) + '" r="3" fill="' + color + '"/>' +
     '</svg>';
 }
 
@@ -124,6 +205,7 @@ function getFreshness(updatedAt) {
   if (!updatedAt) return { class: 'expired', text: '未知' };
   const diff = Date.now() - new Date(updatedAt).getTime();
   const mins = Math.floor(diff / 60000);
+  if (mins < 5) return { class: 'fresh', text: '刚刚' };
   if (mins < 15) return { class: 'fresh', text: mins + '分钟前' };
   if (mins < 60) return { class: 'stale', text: mins + '分钟前' };
   return { class: 'expired', text: Math.floor(mins/60) + '小时前' };
@@ -153,14 +235,23 @@ function sortPrices(prices) {
 
 // 筛选函数
 function filterPrices(prices) {
-  if (!searchTerm) return prices;
-  const term = searchTerm.toLowerCase();
-  const filtered = [];
-  for (let i = 0; i < prices.length; i++) {
-    if (prices[i].hash_name.toLowerCase().includes(term)) {
-      filtered.push(prices[i]);
-    }
+  let filtered = prices;
+  
+  // 搜索筛选
+  if (searchTerm) {
+    const term = searchTerm.toLowerCase();
+    filtered = filtered.filter(p => p.hash_name.toLowerCase().includes(term));
   }
+  
+  // 涨跌筛选
+  if (activeFilter === 'up') {
+    filtered = filtered.filter(p => (p.change_pct || 0) > 0);
+  } else if (activeFilter === 'down') {
+    filtered = filtered.filter(p => (p.change_pct || 0) < 0);
+  } else if (activeFilter === 'alert') {
+    filtered = filtered.filter(p => Math.abs(p.change_pct || 0) >= 5);
+  }
+  
   return filtered;
 }
 
@@ -172,6 +263,40 @@ function debounce(fn, delay) {
     timer = setTimeout(() => fn.apply(this, args), delay);
   };
 }
+
+// 显示详情弹窗
+function showDetail(item) {
+  const modal = document.getElementById('detailModal');
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+  
+  title.textContent = item.hash_name;
+  
+  const history = item.history || [];
+  const historyHtml = history.length > 0 
+    ? '<div class="chart-container"><div class="chart-title">24小时价格走势</div>' + 
+      drawSparkline(history, 700, 200) + '</div>'
+    : '<div style="color:#556677;text-align:center;padding:2rem">暂无历史数据</div>';
+  
+  const statsHtml = '<div class="stats-grid">' +
+    '<div class="stat-item"><div class="stat-label">当前价格</div><div class="stat-value">¥' + item.price.toFixed(2) + '</div></div>' +
+    '<div class="stat-item"><div class="stat-label">在售数量</div><div class="stat-value">' + (item.sell_total || '--') + '</div></div>' +
+    '<div class="stat-item"><div class="stat-label">价格变化</div><div class="stat-value ' + (item.change_pct > 0 ? 'green' : item.change_pct < 0 ? 'red' : '') + '">' + (item.change_pct > 0 ? '+' : '') + (item.change_pct?.toFixed(2) || '0') + '%</div></div>' +
+    '<div class="stat-item"><div class="stat-label">历史最高</div><div class="stat-value">¥' + (history.length > 0 ? Math.max(...history).toFixed(2) : '--') + '</div></div>' +
+    '</div>';
+  
+  body.innerHTML = statsHtml + historyHtml;
+  modal.classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('detailModal').classList.remove('active');
+}
+
+// 点击弹窗外部关闭
+document.getElementById('detailModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
 
 function render(data) {
   currentData = data;
@@ -193,31 +318,36 @@ function render(data) {
   const downPct = total_changes ? (stats.down_count / total_changes * 100).toFixed(1) : 0;
   const flatPct = total_changes ? (stats.flat_count / total_changes * 100).toFixed(1) : 0;
 
-  // 构建告警表格 - 使用字符串拼接优化性能
-  let alertRows = '';
-  const alertLen = Math.min(alerts.length, 30);
+  // 构建告警卡片
+  let alertCards = '';
+  const alertLen = Math.min(alerts.length, 10);
   for (let i = 0; i < alertLen; i++) {
     const a = alerts[i];
-    alertRows += '<tr>' +
-      '<td>' + formatTime(a.created_at) + '</td>' +
-      '<td>' + a.hash_name + '</td>' +
-      '<td>¥' + a.old_price.toFixed(2) + '</td>' +
-      '<td>¥' + a.new_price.toFixed(2) + '</td>' +
-      '<td><span class="tag ' + (a.direction==='up'?'tag-up':'tag-down') + '">' + 
-      (a.change_pct >= 0 ? '+' : '') + a.change_pct.toFixed(2) + '%</span></td>' +
-      '</tr>';
+    const isUp = a.direction === 'up';
+    alertCards += '<div class="alert-card ' + (isUp ? 'up' : '') + '">' +
+      '<div class="alert-header">' +
+        '<span class="alert-title">' + a.hash_name + '</span>' +
+        '<span class="alert-time">' + formatTime(a.created_at) + '</span>' +
+      '</div>' +
+      '<div class="alert-body">' +
+        '<span class="alert-price">¥' + a.old_price.toFixed(2) + '</span>' +
+        '<span class="alert-arrow">→</span>' +
+        '<span class="alert-price">¥' + a.new_price.toFixed(2) + '</span>' +
+        '<span class="alert-change ' + (isUp ? 'green' : 'red') + '">' + (isUp ? '+' : '') + a.change_pct.toFixed(2) + '%</span>' +
+      '</div>' +
+      '</div>';
   }
 
   // 排序和筛选后的价格数据
   const processedPrices = filterPrices(sortPrices(prices));
 
-  // 构建价格表格 - 使用字符串拼接
+  // 构建价格表格
   let priceRows = '';
   for (let i = 0; i < processedPrices.length; i++) {
     const p = processedPrices[i];
-    priceRows += '<tr class="price-row">' +
-      '<td>' + p.hash_name + '</td>' +
-      '<td>¥' + p.price.toFixed(2) + '</td>' +
+    priceRows += '<tr onclick="showDetail(currentData.prices.find(x => x.hash_name === \'' + p.hash_name.replace(/'/g, "\\'") + '\'))" style="cursor:pointer">' +
+      '<td><strong>' + p.hash_name + '</strong></td>' +
+      '<td style="font-size:1.1rem">¥' + p.price.toFixed(2) + '</td>' +
       '<td>' + (p.sell_total ?? '--') + '</td>' +
       '<td class="' + changeClass(p.change_pct) + '">' + changeSign(p.change_pct) + '</td>' +
       '<td>' + drawSparkline(p.history) + '</td>' +
@@ -226,49 +356,62 @@ function render(data) {
 
   const sortIndicator = (field) => sortField === field ? (sortDesc ? '▼' : '▲') : '';
 
-  // 使用 innerHTML 一次性更新，减少 DOM 操作
+  // 筛选标签
+  const filterTabs = [
+    {id:'all',label:'全部'},
+    {id:'up',label:'上涨'},
+    {id:'down',label:'下跌'},
+    {id:'alert',label:'告警'}
+  ];
+  let filterHtml = '';
+  for (let i = 0; i < filterTabs.length; i++) {
+    const tab = filterTabs[i];
+    filterHtml += '<span class="filter-tab ' + (activeFilter === tab.id ? 'active' : '') + '" onclick="setFilter(\'' + tab.id + '\')">' + tab.label + '</span>';
+  }
+
   document.getElementById('app').innerHTML = 
     '<div class="status-row">' +
-      '<div class="card"><div class="label">监控物品</div><div class="value">' + stats.item_count + '</div></div>' +
-      '<div class="card"><div class="label">今日告警</div><div class="value ' + (stats.alert_count ? 'red' : '') + '">' + stats.alert_count + '</div></div>' +
+      '<div class="card"><div class="label">监控物品</div><div class="value">' + stats.item_count + '</div><div class="sub-value">件饰品</div></div>' +
+      '<div class="card"><div class="label">今日告警</div><div class="value ' + (stats.alert_count ? 'red' : '') + '">' + stats.alert_count + '</div><div class="sub-value">次异动</div></div>' +
       '<div class="card"><div class="label">平均涨跌</div><div class="value ' + 
         (stats.avg_change_pct > 0 ? 'green' : stats.avg_change_pct < 0 ? 'red' : '') + '">' + 
-        (stats.avg_change_pct > 0 ? '+' : '') + (stats.avg_change_pct?.toFixed(2) ?? '--') + '%</div></div>' +
-      '<div class="card"><div class="label">数据更新</div><div class="value ' + freshness.class + '" style="font-size:1rem">' + 
-        freshness.text + '<span class="refresh-indicator"></span></div></div>' +
+        (stats.avg_change_pct > 0 ? '+' : '') + (stats.avg_change_pct?.toFixed(2) ?? '--') + '%</div><div class="sub-value">整体趋势</div></div>' +
+      '<div class="card"><div class="label">数据更新</div><div class="value ' + freshness.class + '" style="font-size:1.2rem">' + 
+        freshness.text + '</div><div class="sub-value"><span class="refresh-indicator"></span>自动刷新中</div></div>' +
     '</div>' +
 
-    '<div class="card" style="margin-bottom:1rem">' +
-      '<div style="display:flex;justify-content:space-between;margin-bottom:0.5rem">' +
-        '<span class="green">涨 ' + stats.up_count + ' (' + upPct + '%)</span>' +
-        '<span style="color:#8899aa">平 ' + stats.flat_count + ' (' + flatPct + '%)</span>' +
-        '<span class="red">跌 ' + stats.down_count + ' (' + downPct + '%)</span>' +
+    '<div class="card" style="margin-bottom:1.5rem">' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:0.8rem;flex-wrap:wrap;gap:0.5rem">' +
+        '<span class="green" style="font-weight:600">📈 涨 ' + stats.up_count + ' (' + upPct + '%)</span>' +
+        '<span style="color:#8899aa;font-weight:600">➡️ 平 ' + stats.flat_count + ' (' + flatPct + '%)</span>' +
+        '<span class="red" style="font-weight:600">📉 跌 ' + stats.down_count + ' (' + downPct + '%)</span>' +
       '</div>' +
       '<div class="dist-bar">' +
         '<div class="dist-up" style="width:' + upPct + '%"></div>' +
         '<div class="dist-flat" style="width:' + flatPct + '%"></div>' +
         '<div class="dist-down" style="width:' + downPct + '%"></div>' +
       '</div>' +
-      (stats.max_up ? '<div style="margin-top:0.5rem;font-size:0.8rem"><span class="green">最大涨幅: ' + stats.max_up.hash_name + ' +' + stats.max_up.change_pct + '%</span></div>' : '') +
-      (stats.max_down ? '<div style="font-size:0.8rem"><span class="red">最大跌幅: ' + stats.max_down.hash_name + ' ' + stats.max_down.change_pct + '%</span></div>' : '') +
+      (stats.max_up ? '<div style="margin-top:0.8rem;font-size:0.85rem"><span class="green">🏆 最大涨幅: ' + stats.max_up.hash_name + ' +' + stats.max_up.change_pct + '%</span></div>' : '') +
+      (stats.max_down ? '<div style="font-size:0.85rem;margin-top:0.3rem"><span class="red">📉 最大跌幅: ' + stats.max_down.hash_name + ' ' + stats.max_down.change_pct + '%</span></div>' : '') +
     '</div>' +
 
     (alerts.length ? 
-      '<h2 class="section-title">最近告警（阈值 ≥' + threshold_pct + '%）</h2>' +
-      '<table><thead><tr><th>时间</th><th>物品</th><th>旧价</th><th>新价</th><th>变化</th></tr></thead>' +
-      '<tbody>' + (alertRows || '<tr><td colspan="5" style="text-align:center;color:#556677">暂无告警</td></tr>') + '</tbody></table>' 
+      '<h2 class="section-title">最近告警</h2>' +
+      '<div style="margin-bottom:0.5rem;color:#8899aa;font-size:0.85rem">阈值 ≥' + threshold_pct + '%</div>' +
+      alertCards
       : '') +
 
-    '<h2 class="section-title">当前价格</h2>' +
-    '<input type="text" class="search-box" placeholder="搜索饰品名称..." value="' + searchTerm + '" id="searchInput">' +
+    '<h2 class="section-title">价格监控</h2>' +
+    '<input type="text" class="search-box" placeholder="🔍 搜索饰品名称..." value="' + searchTerm + '" id="searchInput">' +
+    '<div class="filter-tabs">' + filterHtml + '</div>' +
     '<table><thead><tr>' +
       '<th onclick="handleSort(\'hash_name\')">物品 ' + sortIndicator('hash_name') + '</th>' +
       '<th onclick="handleSort(\'price\')">当前价格 ' + sortIndicator('price') + '</th>' +
       '<th onclick="handleSort(\'sell_total\')">在售 ' + sortIndicator('sell_total') + '</th>' +
-      '<th onclick="handleSort(\'change_pct\')">最近变化 ' + sortIndicator('change_pct') + '</th>' +
+      '<th onclick="handleSort(\'change_pct\')">涨跌 ' + sortIndicator('change_pct') + '</th>' +
       '<th>24h趋势</th>' +
-    '</tr></thead><tbody>' + (priceRows || '<tr><td colspan="5" style="text-align:center;color:#556677">无数据</td></tr>') + '</tbody></table>' +
-    '<p class="meta">数据源: ECOSteam · 更新间隔: ' + monitor_interval_min + ' 分钟 · 最后更新: ' + formatTime(updated_at) + ' · 自动刷新中...</p>';
+    '</tr></thead><tbody>' + (priceRows || '<tr><td colspan="5" style="text-align:center;color:#556677;padding:3rem">无数据</td></tr>') + '</tbody></table>' +
+    '<p class="meta">📊 数据源: ECOSteam · ⏱️ 更新间隔: ' + monitor_interval_min + ' 分钟 · 🕐 最后更新: ' + formatTime(updated_at) + '</p>';
 
   // 重新绑定搜索事件
   const searchInput = document.getElementById('searchInput');
@@ -290,6 +433,12 @@ function handleSort(field) {
   if (currentData) render(currentData);
 }
 
+// 筛选处理
+function setFilter(filter) {
+  activeFilter = filter;
+  if (currentData) render(currentData);
+}
+
 // 搜索处理（防抖）
 const debounceSearch = debounce(function(e) {
   searchTerm = e.target.value;
@@ -302,14 +451,19 @@ function load() {
     .then(render)
     .catch(e => {
       document.getElementById('app').innerHTML =
-        '<div class="loading">数据加载失败: ' + e.message + '<br><small>请稍后刷新</small></div>';
+        '<div class="loading">' +
+        '<div style="font-size:3rem;margin-bottom:1rem">⚠️</div>' +
+        '<div>数据加载失败</div>' +
+        '<div style="margin-top:1rem;font-size:0.8rem;color:#556677">' + e.message + '</div>' +
+        '<button onclick="load()" style="margin-top:1rem;padding:0.5rem 1rem;background:#66b3ff;border:none;border-radius:4px;color:#fff;cursor:pointer">重试</button>' +
+        '</div>';
     });
 }
 
 // 启动
 load();
 
-// 自动刷新（使用 requestAnimationFrame 优化）
+// 自动刷新
 function scheduleRefresh() {
   refreshTimer = setTimeout(() => {
     requestAnimationFrame(() => {
@@ -321,13 +475,18 @@ function scheduleRefresh() {
 scheduleRefresh();
 
 // 页面可见性变化时优化刷新
- document.addEventListener('visibilitychange', () => {
+document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     if (refreshTimer) clearTimeout(refreshTimer);
   } else {
     scheduleRefresh();
-    load(); // 立即刷新
+    load();
   }
+});
+
+// ESC 关闭弹窗
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
 });
 </script>
 </body>
