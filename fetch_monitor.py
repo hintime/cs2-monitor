@@ -267,6 +267,59 @@ def get_price_stats(db, hash_name: str) -> dict:
         "data_points": row["data_points"]
     }
 
+def get_price_trend(db, hash_name: str, hours=24) -> list[dict]:
+    """获取指定饰品的价格趋势数据（带时间戳）"""
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+    rows = db.execute("""
+        SELECT price, recorded_at 
+        FROM prices 
+        WHERE hash_name = ? AND recorded_at >= ?
+        ORDER BY recorded_at
+    """, (hash_name, cutoff)).fetchall()
+    
+    return [
+        {"price": round(r["price"], 2), "time": r["recorded_at"]}
+        for r in rows
+    ]
+
+def get_market_overview(db) -> dict:
+    """获取市场概览统计"""
+    # 今日总交易量（在售数量变化）
+    volume_row = db.execute("""
+        SELECT SUM(sell_total) as total_volume 
+        FROM prices 
+        WHERE recorded_at >= datetime('now', '-1 hour')
+    """).fetchone()
+    
+    # 价格变动分布
+    change_dist = db.execute("""
+        SELECT 
+            CASE 
+                WHEN change_pct > 5 THEN 'strong_up'
+                WHEN change_pct > 0 THEN 'up'
+                WHEN change_pct < -5 THEN 'strong_down'
+                WHEN change_pct < 0 THEN 'down'
+                ELSE 'flat'
+            END as category,
+            COUNT(*) as count
+        FROM (
+            SELECT hash_name,
+                   (price - LAG(price) OVER (PARTITION BY hash_name ORDER BY recorded_at DESC)) / 
+                   LAG(price) OVER (PARTITION BY hash_name ORDER BY recorded_at DESC) * 100 as change_pct
+            FROM prices
+            WHERE recorded_at >= date('now')
+        )
+        WHERE change_pct IS NOT NULL
+        GROUP BY category
+    """).fetchall()
+    
+    return {
+        "total_volume": volume_row["total_volume"] if volume_row else 0,
+        "change_distribution": {r["category"]: r["count"] for r in change_dist}
+    }
+
 def get_volatility_ranking(db, limit=10) -> list[dict]:
     """获取波动率排行（标准差/均值）"""
     rows = db.execute("""
@@ -393,6 +446,14 @@ def poll_and_detect():
                 stats_info = get_price_stats(db, snap["hash_name"])
                 if stats_info:
                     snap["stats_7d"] = stats_info
+                
+                # 添加带时间戳的趋势数据（用于详细图表）
+                trend_data = get_price_trend(db, snap["hash_name"], hours=24)
+                if len(trend_data) > 2:
+                    snap["trend_24h"] = trend_data
+
+            # 获取市场概览
+            market_overview = get_market_overview(db)
 
             stats.update({
                 "up_count": up_count,
@@ -402,6 +463,7 @@ def poll_and_detect():
                 "max_up": max_up,
                 "max_down": max_down,
                 "volatility_ranking": volatility_ranking,
+                "market_overview": market_overview,
             })
 
     # 生成 monitor_data.json（使用紧凑格式减少体积）
@@ -412,7 +474,7 @@ def poll_and_detect():
         "alerts": alerts,
         "threshold_pct": ALERT_THRESHOLD_PCT,
         "monitor_interval_min": 10,
-        "version": "2.0",
+        "version": "2.1",
     }
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DATA_DIR / "monitor_data.json"
