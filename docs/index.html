@@ -127,6 +127,13 @@ tr:hover td{background:rgba(102,179,255,0.05)}
 /* 加载动画 */
 .skeleton{background:linear-gradient(90deg,#1a2332 25%,#243447 50%,#1a2332 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* 通知提示 */
+.notification{position:fixed;top:20px;right:20px;padding:1rem 1.5rem;background:linear-gradient(145deg,#1a2332,#121820);border:1px solid #2a3a4a;border-radius:12px;box-shadow:0 8px 25px rgba(0,0,0,0.3);z-index:2000;transform:translateX(400px);transition:transform 0.3s ease;max-width:300px}
+.notification.show{transform:translateX(0)}
+.notification-title{font-weight:600;margin-bottom:0.3rem;color:#66b3ff}
+.notification-body{font-size:0.85rem;color:#8899aa}
+.notification-time{font-size:0.75rem;color:#556677;margin-top:0.5rem}
 </style>
 </head>
 <body>
@@ -153,9 +160,13 @@ tr:hover td{background:rgba(102,179,255,0.05)}
   </div>
 </div>
 
+<!-- 通知容器 -->
+<div id="notificationContainer"></div>
+
 <script>
 // 全局状态
 let currentData = null;
+let previousData = null;
 let sortField = 'hash_name';
 let sortDesc = false;
 let searchTerm = '';
@@ -163,6 +174,8 @@ let activeFilter = 'all';
 let refreshTimer = null;
 let lastRenderTime = 0;
 let priceChart = null;
+let notificationQueue = [];
+let notificationTimer = null;
 
 // 自动刷新间隔（毫秒）
 const REFRESH_INTERVAL = 60000;
@@ -264,6 +277,46 @@ function debounce(fn, delay) {
   };
 }
 
+// 显示通知
+function showNotification(title, body, type='info') {
+  const container = document.getElementById('notificationContainer');
+  const notif = document.createElement('div');
+  notif.className = 'notification';
+  notif.innerHTML = 
+    '<div class="notification-title">' + title + '</div>' +
+    '<div class="notification-body">' + body + '</div>' +
+    '<div class="notification-time">' + new Date().toLocaleTimeString() + '</div>';
+  
+  container.appendChild(notif);
+  
+  // 触发重排以启动动画
+  notif.offsetHeight;
+  notif.classList.add('show');
+  
+  // 3秒后自动移除
+  setTimeout(() => {
+    notif.classList.remove('show');
+    setTimeout(() => notif.remove(), 300);
+  }, 5000);
+}
+
+// 检测新告警
+function detectNewAlerts(current, previous) {
+  if (!previous || !previous.alerts) return;
+  
+  const currentIds = new Set(current.alerts.map(a => a.created_at + a.hash_name));
+  const newAlerts = previous.alerts.filter(a => !currentIds.has(a.created_at + a.hash_name));
+  
+  newAlerts.forEach(alert => {
+    const isUp = alert.direction === 'up';
+    showNotification(
+      (isUp ? '📈' : '📉') + ' 价格异动告警',
+      alert.hash_name + ' ' + (isUp ? '上涨' : '下跌') + ' ' + Math.abs(alert.change_pct).toFixed(2) + '%',
+      isUp ? 'up' : 'down'
+    );
+  });
+}
+
 // 显示详情弹窗
 function showDetail(item) {
   const modal = document.getElementById('detailModal');
@@ -278,11 +331,14 @@ function showDetail(item) {
       drawSparkline(history, 700, 200) + '</div>'
     : '<div style="color:#556677;text-align:center;padding:2rem">暂无历史数据</div>';
   
+  const stats7d = item.stats_7d || {};
   const statsHtml = '<div class="stats-grid">' +
     '<div class="stat-item"><div class="stat-label">当前价格</div><div class="stat-value">¥' + item.price.toFixed(2) + '</div></div>' +
     '<div class="stat-item"><div class="stat-label">在售数量</div><div class="stat-value">' + (item.sell_total || '--') + '</div></div>' +
     '<div class="stat-item"><div class="stat-label">价格变化</div><div class="stat-value ' + (item.change_pct > 0 ? 'green' : item.change_pct < 0 ? 'red' : '') + '">' + (item.change_pct > 0 ? '+' : '') + (item.change_pct?.toFixed(2) || '0') + '%</div></div>' +
-    '<div class="stat-item"><div class="stat-label">历史最高</div><div class="stat-value">¥' + (history.length > 0 ? Math.max(...history).toFixed(2) : '--') + '</div></div>' +
+    '<div class="stat-item"><div class="stat-label">7日均价</div><div class="stat-value">¥' + (stats7d.avg_7d || '--') + '</div></div>' +
+    '<div class="stat-item"><div class="stat-label">7日最高</div><div class="stat-value">¥' + (stats7d.max_7d || '--') + '</div></div>' +
+    '<div class="stat-item"><div class="stat-label">7日最低</div><div class="stat-value">¥' + (stats7d.min_7d || '--') + '</div></div>' +
     '</div>';
   
   body.innerHTML = statsHtml + historyHtml;
@@ -299,6 +355,12 @@ document.getElementById('detailModal').addEventListener('click', function(e) {
 });
 
 function render(data) {
+  // 检测新告警
+  if (previousData) {
+    detectNewAlerts(data, previousData);
+  }
+  previousData = JSON.parse(JSON.stringify(data));
+  
   currentData = data;
   const { stats, prices, alerts, updated_at, threshold_pct, monitor_interval_min } = data;
 
