@@ -320,6 +320,59 @@ def get_market_overview(db) -> dict:
         "change_distribution": {r["category"]: r["count"] for r in change_dist}
     }
 
+def get_price_trend(db, hash_name: str, hours=24) -> list[dict]:
+    """获取指定饰品的价格趋势数据（带时间戳）"""
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+    rows = db.execute("""
+        SELECT price, recorded_at 
+        FROM prices 
+        WHERE hash_name = ? AND recorded_at >= ?
+        ORDER BY recorded_at
+    """, (hash_name, cutoff)).fetchall()
+    
+    return [
+        {"price": round(r["price"], 2), "time": r["recorded_at"]}
+        for r in rows
+    ]
+
+def get_market_overview(db) -> dict:
+    """获取市场概览统计"""
+    # 今日总交易量（在售数量变化）
+    volume_row = db.execute("""
+        SELECT SUM(sell_total) as total_volume 
+        FROM prices 
+        WHERE recorded_at >= datetime('now', '-1 hour')
+    """).fetchone()
+    
+    # 价格变动分布
+    change_dist = db.execute("""
+        SELECT 
+            CASE 
+                WHEN change_pct > 5 THEN 'strong_up'
+                WHEN change_pct > 0 THEN 'up'
+                WHEN change_pct < -5 THEN 'strong_down'
+                WHEN change_pct < 0 THEN 'down'
+                ELSE 'flat'
+            END as category,
+            COUNT(*) as count
+        FROM (
+            SELECT hash_name,
+                   (price - LAG(price) OVER (PARTITION BY hash_name ORDER BY recorded_at DESC)) / 
+                   LAG(price) OVER (PARTITION BY hash_name ORDER BY recorded_at DESC) * 100 as change_pct
+            FROM prices
+            WHERE recorded_at >= date('now')
+        )
+        WHERE change_pct IS NOT NULL
+        GROUP BY category
+    """).fetchall()
+    
+    return {
+        "total_volume": volume_row["total_volume"] if volume_row else 0,
+        "change_distribution": {r["category"]: r["count"] for r in change_dist}
+    }
+
 def get_volatility_ranking(db, limit=10) -> list[dict]:
     """获取波动率排行（标准差/均值）"""
     rows = db.execute("""
