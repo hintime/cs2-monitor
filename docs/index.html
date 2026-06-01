@@ -216,12 +216,16 @@ function drawSparkline(history, width=100, height=35) {
 // 计算数据新鲜度
 function getFreshness(updatedAt) {
   if (!updatedAt) return { class: 'expired', text: '未知' };
-  const diff = Date.now() - new Date(updatedAt).getTime();
+  // 将 UTC 时间字符串解析为本地时间
+  const updated = new Date(updatedAt + 'Z'); // 加上 Z 明确为 UTC
+  const diff = Date.now() - updated.getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 5) return { class: 'fresh', text: '刚刚' };
-  if (mins < 15) return { class: 'fresh', text: mins + '分钟前' };
-  if (mins < 60) return { class: 'stale', text: mins + '分钟前' };
-  return { class: 'expired', text: Math.floor(mins/60) + '小时前' };
+  if (mins < 1) return { class: 'fresh', text: '刚刚' };
+  if (mins < 60) return { class: 'fresh', text: mins + '分钟前' };
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return { class: 'stale', text: hours + '小时前' };
+  const days = Math.floor(hours / 24);
+  return { class: 'expired', text: days + '天前' };
 }
 
 // 排序函数
@@ -439,7 +443,7 @@ function render(data) {
         (stats.avg_change_pct > 0 ? 'green' : stats.avg_change_pct < 0 ? 'red' : '') + '">' + 
         (stats.avg_change_pct > 0 ? '+' : '') + (stats.avg_change_pct?.toFixed(2) ?? '--') + '%</div><div class="sub-value">整体趋势</div></div>' +
       '<div class="card"><div class="label">数据更新</div><div class="value ' + freshness.class + '" style="font-size:1.2rem">' + 
-        freshness.text + '</div><div class="sub-value"><span class="refresh-indicator"></span>自动刷新中</div></div>' +
+        freshness.text + '</div><div class="sub-value"><span class="refresh-indicator"></span>' + formatTime(updated_at) + '</div></div>' +
     '</div>' +
 
     '<div class="card" style="margin-bottom:1.5rem">' +
