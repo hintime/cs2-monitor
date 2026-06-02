@@ -125,6 +125,8 @@ def db_conn():
 def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with db_conn() as db:
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("PRAGMA busy_timeout=5000")
         db.executescript("""
             CREATE TABLE IF NOT EXISTS prices (
                 id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -151,13 +153,12 @@ def init_db():
                 ON alerts(created_at);
         """)
 
-def insert_prices_batch(records: list[tuple]):
-    """批量插入价格记录"""
-    with db_conn() as db:
-        db.executemany(
-            "INSERT INTO prices (hash_name, price, sell_total) VALUES (?,?,?)",
-            records,
-        )
+def insert_prices_batch(db, records: list[tuple]):
+    """批量插入价格记录（需传入已有的数据库连接）"""
+    db.executemany(
+        "INSERT INTO prices (hash_name, price, sell_total) VALUES (?,?,?)",
+        records,
+    )
 
 def get_previous_prices(db, hash_names: list) -> dict:
     """批量获取上一次价格，使用单次查询"""
@@ -411,7 +412,7 @@ def poll_and_detect():
 
             # 批量插入价格记录
             if price_records:
-                insert_prices_batch(price_records)
+                insert_prices_batch(db, price_records)
 
             # 获取统计数据
             alerts = get_recent_alerts(db, limit=100)
@@ -467,7 +468,7 @@ def poll_and_detect():
         "alerts": alerts,
         "threshold_pct": ALERT_THRESHOLD_PCT,
         "monitor_interval_min": 10,
-        "version": "2.1",
+        "version": "2.2",
     }
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     out_path = DATA_DIR / "monitor_data.json"
