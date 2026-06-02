@@ -173,9 +173,6 @@ let searchTerm = '';
 let activeFilter = 'all';
 let refreshTimer = null;
 let lastRenderTime = 0;
-let priceChart = null;
-let notificationQueue = [];
-let notificationTimer = null;
 
 // 自动刷新间隔（毫秒）
 const REFRESH_INTERVAL = 60000;
@@ -308,8 +305,8 @@ function showNotification(title, body, type='info') {
 function detectNewAlerts(current, previous) {
   if (!previous || !previous.alerts) return;
   
-  const currentIds = new Set(current.alerts.map(a => a.created_at + a.hash_name));
-  const newAlerts = previous.alerts.filter(a => !currentIds.has(a.created_at + a.hash_name));
+  const previousIds = new Set(previous.alerts.map(a => a.created_at + a.hash_name));
+  const newAlerts = current.alerts.filter(a => !previousIds.has(a.created_at + a.hash_name));
   
   newAlerts.forEach(alert => {
     const isUp = alert.direction === 'up';
@@ -330,10 +327,31 @@ function showDetail(item) {
   title.textContent = item.hash_name;
   
   const history = item.history || [];
-  const historyHtml = history.length > 0 
-    ? '<div class="chart-container"><div class="chart-title">24小时价格走势</div>' + 
-      drawSparkline(history, 700, 200) + '</div>'
-    : '<div style="color:#556677;text-align:center;padding:2rem">暂无历史数据</div>';
+  const trend24h = item.trend_24h || [];
+  let historyHtml;
+  if (trend24h.length >= 2) {
+    // 使用带时间戳的趋势数据，绘制时间轴
+    const prices = trend24h.map(t => t.price);
+    const times = trend24h.map(t => {
+      const d = new Date(t.time + 'Z');
+      return (d.getMonth()+1) + '/' + d.getDate() + ' ' + 
+             d.getHours().toString().padStart(2,'0') + ':' + 
+             d.getMinutes().toString().padStart(2,'0');
+    });
+    const sparkline = drawSparkline(prices, 680, 200);
+    const timeLabels = '<div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-size:0.7rem;color:#556677">' +
+      '<span>' + times[0] + '</span>' +
+      (times.length > 2 ? '<span>' + times[Math.floor(times.length/2)] + '</span>' : '') +
+      '<span>' + times[times.length-1] + '</span>' +
+      '</div>';
+    historyHtml = '<div class="chart-container"><div class="chart-title">24小时价格走势</div>' + 
+      sparkline + timeLabels + '</div>';
+  } else if (history.length >= 2) {
+    historyHtml = '<div class="chart-container"><div class="chart-title">24小时价格走势</div>' + 
+      drawSparkline(history, 700, 200) + '</div>';
+  } else {
+    historyHtml = '<div style="color:#556677;text-align:center;padding:2rem">暂无历史数据</div>';
+  }
   
   const stats7d = item.stats_7d || {};
   const statsHtml = '<div class="stats-grid">' +
@@ -370,7 +388,24 @@ function render(data) {
 
   const formatTime = (t) => {
     if (!t) return 'N/A';
-    return t.replace('T',' ').substring(0,19);
+    const d = new Date(t + 'Z');
+    const m = (d.getMonth()+1).toString().padStart(2,'0');
+    const day = d.getDate().toString().padStart(2,'0');
+    const h = d.getHours().toString().padStart(2,'0');
+    const min = d.getMinutes().toString().padStart(2,'0');
+    return m + '-' + day + ' ' + h + ':' + min;
+  };
+
+  const formatFullTime = (t) => {
+    if (!t) return 'N/A';
+    const d = new Date(t + 'Z');
+    const y = d.getFullYear();
+    const m = (d.getMonth()+1).toString().padStart(2,'0');
+    const day = d.getDate().toString().padStart(2,'0');
+    const h = d.getHours().toString().padStart(2,'0');
+    const min = d.getMinutes().toString().padStart(2,'0');
+    const s = d.getSeconds().toString().padStart(2,'0');
+    return y + '-' + m + '-' + day + ' ' + h + ':' + min + ':' + s + ' (UTC+8)';
   };
 
   const changeClass = (v) => v > 0 ? 'price-up' : v < 0 ? 'price-down' : '';
@@ -443,7 +478,7 @@ function render(data) {
         (stats.avg_change_pct > 0 ? 'green' : stats.avg_change_pct < 0 ? 'red' : '') + '">' + 
         (stats.avg_change_pct > 0 ? '+' : '') + (stats.avg_change_pct?.toFixed(2) ?? '--') + '%</div><div class="sub-value">整体趋势</div></div>' +
       '<div class="card"><div class="label">数据更新</div><div class="value ' + freshness.class + '" style="font-size:1.2rem">' + 
-        freshness.text + '</div><div class="sub-value"><span class="refresh-indicator"></span>' + formatTime(updated_at) + '</div></div>' +
+        freshness.text + '</div><div class="sub-value">北京时间 ' + formatTime(updated_at) + '</div></div>' +
     '</div>' +
 
     '<div class="card" style="margin-bottom:1.5rem">' +
@@ -461,6 +496,23 @@ function render(data) {
       (stats.max_down ? '<div style="font-size:0.85rem;margin-top:0.3rem"><span class="red">📉 最大跌幅: ' + stats.max_down.hash_name + ' ' + stats.max_down.change_pct + '%</span></div>' : '') +
     '</div>' +
 
+    // 波动率排行
+    (stats.volatility_ranking && stats.volatility_ranking.length ?
+      '<h2 class="section-title">📊 波动率排行 (24h)</h2>' +
+      '<div class="card" style="margin-bottom:1.5rem;padding:1rem">' +
+      '<table style="margin:0"><thead><tr>' +
+      '<th>物品</th><th>均价</th><th>波动率</th>' +
+      '</tr></thead><tbody>' +
+      stats.volatility_ranking.map((v, i) => 
+        '<tr>' +
+        '<td><strong>' + (i+1) + '. ' + v.hash_name + '</strong></td>' +
+        '<td>¥' + v.avg_price.toFixed(2) + '</td>' +
+        '<td><span style="color:#ff9800;font-weight:600">' + v.volatility_pct.toFixed(2) + '%</span></td>' +
+        '</tr>'
+      ).join('') +
+      '</tbody></table></div>'
+      : '') +
+
     (alerts.length ? 
       '<h2 class="section-title">最近告警</h2>' +
       '<div style="margin-bottom:0.5rem;color:#8899aa;font-size:0.85rem">阈值 ≥' + threshold_pct + '%</div>' +
@@ -477,7 +529,7 @@ function render(data) {
       '<th onclick="handleSort(\'change_pct\')">涨跌 ' + sortIndicator('change_pct') + '</th>' +
       '<th>24h趋势</th>' +
     '</tr></thead><tbody>' + (priceRows || '<tr><td colspan="5" style="text-align:center;color:#556677;padding:3rem">无数据</td></tr>') + '</tbody></table>' +
-    '<p class="meta">📊 数据源: ECOSteam · ⏱️ 更新间隔: ' + monitor_interval_min + ' 分钟 · 🕐 最后更新: ' + formatTime(updated_at) + '</p>';
+    '<p class="meta">📊 数据源: ECOSteam · ⏱️ 更新间隔: ' + monitor_interval_min + ' 分钟 · 🕐 最后更新: ' + formatFullTime(updated_at) + '</p>';
 
   // 重新绑定搜索事件
   const searchInput = document.getElementById('searchInput');
