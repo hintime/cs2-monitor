@@ -214,23 +214,16 @@ def get_stats(db) -> dict:
     return {"item_count": item_count, "alert_count": alert_count, "last_poll": last_poll or "N/A"}
 
 def get_today_changes_batch(db) -> list[dict]:
-    """高效获取今日所有价格变化，单次查询"""
+    """获取所有价格变化（取每个物品最近2次记录比较），不限制日期"""
     rows = db.execute("""
-        WITH latest AS (
-            SELECT hash_name, price, recorded_at,
+        WITH ranked AS (
+            SELECT hash_name, price,
                    ROW_NUMBER() OVER (PARTITION BY hash_name ORDER BY recorded_at DESC) as rn
             FROM prices
-            WHERE date(recorded_at) = date('now')
-        ),
-        previous AS (
-            SELECT hash_name, price, recorded_at,
-                   ROW_NUMBER() OVER (PARTITION BY hash_name ORDER BY recorded_at DESC) as rn
-            FROM prices
-            WHERE date(recorded_at) = date('now')
         )
         SELECT l.hash_name, l.price as current_price, p.price as prev_price
-        FROM latest l
-        JOIN previous p ON l.hash_name = p.hash_name
+        FROM ranked l
+        JOIN ranked p ON l.hash_name = p.hash_name
         WHERE l.rn = 1 AND p.rn = 2
     """).fetchall()
     

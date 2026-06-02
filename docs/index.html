@@ -6,7 +6,7 @@
 <title>CS2 Monitor - 饰品异动监控</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0e1a;color:#e0e0e0;min-height:100vh}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif;background:#0a0e1a;color:#e0e0e0;min-height:100vh}
 
 /* 头部 */
 .header{background:linear-gradient(135deg,#1a2332,#0a0e1a);padding:2rem;text-align:center;border-bottom:2px solid #2a4a6a;position:relative;overflow:hidden}
@@ -384,7 +384,13 @@ function render(data) {
   previousData = JSON.parse(JSON.stringify(data));
   
   currentData = data;
-  const { stats, prices, alerts, updated_at, threshold_pct, monitor_interval_min } = data;
+  const stats = Object.assign({
+    item_count: 0, alert_count: 0, last_poll: null,
+    up_count: 0, down_count: 0, flat_count: 0,
+    avg_change_pct: 0, max_up: null, max_down: null,
+    volatility_ranking: [], market_overview: null
+  }, data.stats || {});
+  const { prices, alerts, updated_at, threshold_pct, monitor_interval_min } = data;
 
   const formatTime = (t) => {
     if (!t) return 'N/A';
